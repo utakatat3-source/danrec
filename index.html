@@ -107,7 +107,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .orow{display:flex;align-items:center;gap:5px;padding:7px 0;border-bottom:1px solid var(--line)}
 .orow span{flex:1;min-width:0;font-size:14px;word-break:break-word}
 .orow small{color:var(--muted);font-size:12px}
-.obtn{width:30px;height:32px;flex:0 0 auto;font-size:13px;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
+.obtn.act{color:var(--accent);border-color:var(--accent)}
+.obtn{width:28px;height:32px;flex:0 0 auto;font-size:13px;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
 .pass{padding:10px 0;border-bottom:1px solid var(--line)}
 .pass:last-child{border-bottom:none}
 .pass b{font-size:15px}
@@ -129,6 +130,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .cd.end::after{background:#fff}
 .drag{cursor:grab;touch-action:none;color:var(--muted);font-size:16px}
 .orow.dragging{opacity:.65;background:var(--accent-soft);border-radius:8px}
+.pill.warnpill{background:transparent;border:1px dashed var(--accent);color:var(--accent)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -174,7 +176,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="field"><label>舞房</label><div class="chips" id="c-studio"></div></div>
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
-    <div class="field"><label>用哪张卡</label><div class="chips" id="c-bill"></div></div>
+    <div class="field"><label>用哪张卡</label><div class="chips" id="c-bill"></div><div class="note" id="bill-tip" style="margin-top:6px"></div></div>
     <div class="row">
       <div class="field"><label>本节扣减</label><input type="number" id="i-qty" value="1" min="1" inputmode="numeric"></div>
       <div class="field"><label>扣减单位</label><div class="sel"><select id="i-unit">
@@ -203,6 +205,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <button data-d="studio">舞房</button>
     </div>
     <div class="tbl"><table id="agg"></table></div>
+    <div id="agg-more" style="text-align:center;margin-top:10px"></div>
     <div class="note" style="margin-top:10px">点表头切换排序：课数 / 平均难度 / 最近一次。</div>
   </div>
   <div class="card">
@@ -445,7 +448,7 @@ function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i]
 function resetForm(){
   editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
   pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="";
-  renderFilters(); $("#i-note").value=""; $("#i-qty").value=1; $("#i-unit").value="次";
+  billTouched=false; billExpand=false; renderFilters(); $("#i-note").value=""; $("#i-qty").value=1; $("#i-unit").value="次"; suggestBill();
   $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
 }
 function lastVal(f){ return records.length? (records[records.length-1][f]||"") : ""; }
@@ -453,7 +456,7 @@ function loadForm(r){
   editing=r.id; lvl=r.level||0;
   $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
   pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"";
-  renderFilters(); $("#i-note").value=r.note||""; $("#i-qty").value=r.qty||1; $("#i-unit").value=r.unit||"次";
+  billTouched=!!r.bill; billExpand=false; renderFilters(); $("#i-note").value=r.note||""; $("#i-qty").value=r.qty||1; $("#i-unit").value=r.unit||"次"; if(!r.bill) suggestBill(); else billChips();
   $("#cancel").hidden=false; $("#save").textContent="保存修改";
   paint(); show("add");
 }
@@ -468,7 +471,7 @@ $("#save").onclick=async function(){
   if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
 };
 $("#cancel").onclick=function(){ resetForm(); show("list"); };
-$("#i-date").onchange=function(){ $("#i-week").value=weekOf(this.value); };
+$("#i-date").onchange=function(){ $("#i-week").value=weekOf(this.value); suggestBill(); };
 
 /* ---- 记录列表 ---- */
 var desc=true, page=60;
@@ -508,6 +511,7 @@ function renderList(){
     var bc=billMap[r.id];
     if(bc&&bc!=="self"){ var bcd=cardById(bc); if(bcd&&bcd.studio!==r.studio) t.appendChild(el("span","pill",bcd.name)); }
     if(bc==="self") t.appendChild(el("span","pill","单独付费"));
+    if(!bc) t.appendChild(el("span","pill warnpill","未登记"));
     if(qtyOf(r)>1) t.appendChild(el("span","pill",("扣"+qtyOf(r)+(r.unit||"次"))));
     t.appendChild(document.createTextNode(r.teacher||"—"));
     mm.appendChild(t);
@@ -540,6 +544,20 @@ function uniq(f){
   return Object.keys(m).sort(function(a,b){ return m[b]-m[a]; });
 }
 var OKEY="dance_order_v1", ORDER={};
+var HKEY="dance_hidden_v1", HIDDEN={};
+try{ HIDDEN=JSON.parse(localStorage.getItem(HKEY)||"{}"); }catch(e){ HIDDEN={}; }
+function saveHidden(){ try{ localStorage.setItem(HKEY,JSON.stringify(HIDDEN)); }catch(e){} }
+function isHidden(f,v){ return (HIDDEN[f]||[]).indexOf(v)>=0; }
+function toggleHidden(f,v){
+  if(!HIDDEN[f]) HIDDEN[f]=[];
+  var i=HIDDEN[f].indexOf(v);
+  if(i>=0) HIDDEN[f].splice(i,1); else HIDDEN[f].push(v);
+  saveHidden();
+}
+function counts(f){
+  var m={}; records.forEach(function(r){ if(r[f]) m[r[f]]=(m[r[f]]||0)+1; });
+  return m;
+}
 try{ ORDER=JSON.parse(localStorage.getItem(OKEY)||"{}"); }catch(e){ ORDER={}; }
 function saveOrder(){ try{ localStorage.setItem(OKEY,JSON.stringify(ORDER)); }catch(e){} }
 function items(f){
@@ -550,30 +568,73 @@ function items(f){
   return out;
 }
 var pick={studio:"",style:"",teacher:"",bill:""}, expand={};
+var billTouched=false, billExpand=false;
+function cardActive(c,d){
+  if(c.kind==="once") return false;
+  if(!c.start) return false;
+  if(d<c.start) return false;
+  if(c.end && d>c.end) return false;
+  return true;
+}
+/* 按当前表单内容推荐应该用哪张卡 */
+function suggestBill(){
+  if(billTouched) return;
+  var d=$("#i-date").value||today();
+  var cs=orderedCards();
+  var hit=null;
+  for(var i=0;i<cs.length;i++){
+    var c=cs[i];
+    if(c.studio && pick.studio && c.studio!==pick.studio) continue;
+    if(c.studio && !pick.studio) continue;
+    if(!cardActive(c,d)) continue;
+    hit=c; break;
+  }
+  pick.bill=hit? hit.id:"";
+  billChips();
+}
 function billChips(){
   var box=$("#c-bill"); if(!box) return; box.innerHTML="";
-  var opts=[{v:"",t:"自动匹配"}];
-  liveCards().forEach(function(c){ if(c.kind!=="once") opts.push({v:c.id,t:c.name}); });
-  liveCards().forEach(function(c){ if(c.kind==="once") opts.push({v:c.id,t:c.name}); });
-  opts.push({v:"self",t:"未记录付费"});
-  opts.forEach(function(o){
-    var b=el("button","chip"+(pick.bill===o.v?" on":""),o.t); b.type="button";
-    b.onclick=function(){ pick.bill=o.v; billChips(); };
+  var d=$("#i-date").value||today();
+  var main=[], rest=[];
+  liveCards().forEach(function(c){
+    if(c.id===pick.bill) main.push(c);
+    else if(cardActive(c,d)) main.push(c);
+    else rest.push(c);
+  });
+  var show=billExpand? main.concat(rest):main;
+  show.forEach(function(c){
+    var b=el("button","chip"+(pick.bill===c.id?" on":""),c.name); b.type="button";
+    b.onclick=function(){ billTouched=true; pick.bill=(pick.bill===c.id?"":c.id); billChips(); };
     box.appendChild(b);
   });
+  if(!billExpand&&rest.length){
+    var m=el("button","chip add","展开 "+rest.length); m.type="button";
+    m.onclick=function(){ billExpand=true; billChips(); }; box.appendChild(m);
+  }
+  var s=el("button","chip"+(pick.bill==="self"?" on":"")+" add","单独付费"); s.type="button";
+  s.onclick=function(){ billTouched=true; pick.bill=(pick.bill==="self"?"":"self"); billChips(); };
+  box.appendChild(s);
+  var tip=$("#bill-tip");
+  if(tip) tip.textContent = pick.bill? "":"未匹配到卡，保存后会标为「未登记」";
 }
 function chips(f){
   var box=$("#c-"+f); if(!box) return;
   box.innerHTML="";
-  var list=items(f), lim=expand[f]?list.length:(f==="teacher"?10:8);
-  if(pick[f]&&list.indexOf(pick[f])>=lim) lim=list.indexOf(pick[f])+1;
-  list.slice(0,lim).forEach(function(v){
+  var list=items(f), cnt=counts(f);
+  var main=[], rest=[];
+  list.forEach(function(v){
+    if(v===pick[f]) main.push(v);
+    else if(isHidden(f,v)||(cnt[v]||0)<=2) rest.push(v);
+    else main.push(v);
+  });
+  var show=expand[f]? main.concat(rest):main;
+  show.forEach(function(v){
     var b=el("button","chip"+(pick[f]===v?" on":""),v); b.type="button";
-    b.onclick=function(){ pick[f]=(pick[f]===v?"":v); chips(f); };
+    b.onclick=function(){ pick[f]=(pick[f]===v?"":v); chips(f); if(f==="studio") suggestBill(); };
     box.appendChild(b);
   });
-  if(list.length>lim){
-    var m=el("button","chip add","更多 "+(list.length-lim)); m.type="button";
+  if(!expand[f]&&rest.length){
+    var m=el("button","chip add","展开 "+rest.length); m.type="button";
     m.onclick=function(){ expand[f]=1; chips(f); }; box.appendChild(m);
   }
   var a=el("button","chip add","＋ 新增"); a.type="button";
@@ -583,6 +644,7 @@ function chips(f){
     if(!ORDER[f]) ORDER[f]=items(f);
     if(ORDER[f].indexOf(v)<0) ORDER[f].unshift(v);
     saveOrder(); pick[f]=v; expand[f]=1; chips(f);
+    if(f==="studio") suggestBill();
   };
   box.appendChild(a);
 }
@@ -686,6 +748,9 @@ function renderOrder(){
     var dh=el("button","obtn drag","≡"); dh.type="button";
     var s=el("span"); s.appendChild(document.createTextNode(v));
     s.appendChild(el("small",null,"  "+(cnt[v]||0)+" 节"));
+    var hd2=el("button","obtn"+(isHidden(odim,v)?" act":""),isHidden(odim,v)?"◇":"◆");
+    hd2.title="折叠/展开";
+    hd2.onclick=function(){ toggleHidden(odim,v); renderOrder(); chips(odim); };
     var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"),
         up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
     bl.onclick=function(){
@@ -720,7 +785,7 @@ function renderOrder(){
       }
       renameVal(odim,v,nv);
     };
-    row.appendChild(dh); row.appendChild(s); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    row.appendChild(dh); row.appendChild(s); row.appendChild(hd2); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
     box.appendChild(row);
   });
   if(!list.length) box.appendChild(el("div","empty","暂无选项"));
@@ -803,7 +868,7 @@ $("#f-kw").oninput=function(){ page=60; renderList(); };
 $("#f-sort").onclick=function(){ desc=!desc; this.textContent=desc?"最新在前 ↓":"最早在前 ↑"; page=60; renderList(); };
 
 /* ---- 统计 ---- */
-var range=0, dim="teacher", sk="count", sd=-1, gran="month";
+var range=0, dim="teacher", sk="count", sd=-1, gran="month", aggExpand=false;
 function inR(r){
   if(!range) return true;
   var d=new Date(r.date+"T00:00:00"); if(isNaN(d)) return false;
@@ -835,6 +900,8 @@ function renderStats(){
     var x = sk==="count"?a.count-b.count : sk==="avg"?a.avg-b.avg : (a.last<b.last?-1:a.last>b.last?1:0);
     return x===0? a.count-b.count : x*sd;
   });
+  var hideN=rows.filter(function(o){ return o.count<=2 && !aggExpand; }).length;
+  if(!aggExpand) rows=rows.filter(function(o){ return o.count>2; });
   var max=Math.max.apply(null,[1].concat(rows.map(function(r){return r.count;})));
   var t=$("#agg"); t.innerHTML="";
   var hr=t.insertRow();
@@ -856,6 +923,19 @@ function renderStats(){
     tr.insertCell().textContent=o.last.slice(5);
   });
 
+  var ab=$("#agg-more");
+  if(ab){
+    ab.innerHTML="";
+    if(hideN>0){
+      var mb=el("button","btn ghost sm","展开少于 3 节的 "+hideN+" 项");
+      mb.onclick=function(){ aggExpand=true; renderStats(); };
+      ab.appendChild(mb);
+    } else if(aggExpand){
+      var cb=el("button","btn ghost sm","收起");
+      cb.onclick=function(){ aggExpand=false; renderStats(); };
+      ab.appendChild(cb);
+    }
+  }
   var mg={};
   rs.forEach(function(r){
     var m = gran==="week" ? (r.week||weekOf(r.date)||"—") : r.date.slice(0,7);
@@ -883,7 +963,7 @@ Array.prototype.forEach.call($("#range").children,function(b){
 });
 Array.prototype.forEach.call($("#dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#dim").children,function(x){x.className="";});
-    b.className="on"; dim=b.dataset.d; renderStats(); };
+    b.className="on"; dim=b.dataset.d; aggExpand=false; renderStats(); };
 });
 Array.prototype.forEach.call($("#gran").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#gran").children,function(x){x.className="";});
