@@ -107,7 +107,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .orow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
 .orow span{flex:1;min-width:0;font-size:14px}
 .orow small{color:var(--muted);font-size:12px}
-.obtn{width:38px;height:34px;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
+.obtn{width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -194,6 +194,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <button class="btn ghost" id="sb-sync">立即同步</button>
     </div>
     <button class="btn ghost" id="sb-clear" style="margin-top:8px">断开云端</button>
+    <button class="btn ghost" id="sb-shift" style="margin-top:8px">原始数据难度整体 +1（限一次）</button>
     <div class="note" style="margin-top:10px">密钥只存在本机浏览器，不会出现在网站文件里。</div>
   </div>
   <div class="card">
@@ -481,15 +482,34 @@ function renderFilters(){
 }
 /* 设置页：调整顺序 */
 var odim="teacher";
+function renameVal(f,oldv,newv){
+  if(!newv||newv===oldv) return;
+  var touched={}, changed=[];
+  Object.keys(years).forEach(function(y){
+    (years[y]||[]).forEach(function(r){
+      if(r[f]===oldv){ r[f]=newv; r.updated_at=Date.now(); touched[y]=1; changed.push(r); }
+    });
+  });
+  Object.keys(touched).forEach(function(y){ writeYear(y); });
+  if(ORDER[f]){
+    var i=ORDER[f].indexOf(oldv);
+    if(i>=0){ if(ORDER[f].indexOf(newv)>=0) ORDER[f].splice(i,1); else ORDER[f][i]=newv; saveOrder(); }
+  }
+  if(pick[f]===oldv) pick[f]=newv;
+  if(changed.length) push(changed);
+  flatten(); cache(); renderAll(); renderOrder();
+  toast(changed.length? ("已更新 "+changed.length+" 条"):"已重命名");
+}
 function renderOrder(){
   var box=$("#ord-list"); box.innerHTML="";
   var list=items(odim);
   var cnt={}; records.forEach(function(r){ if(r[odim]) cnt[r[odim]]=(cnt[r[odim]]||0)+1; });
+  var label={studio:"舞房",style:"舞种",teacher:"老师"}[odim];
   list.forEach(function(v,i){
     var row=el("div","orow");
     var s=el("span"); s.appendChild(document.createTextNode(v));
     s.appendChild(el("small",null,"  "+(cnt[v]||0)+" 节"));
-    var up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
+    var ed=el("button","obtn","✎"), up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
     function move(from,to){
       var l=items(odim);
       if(to<0||to>=l.length) return;
@@ -499,7 +519,19 @@ function renderOrder(){
     up.onclick=function(){ move(i,i-1); };
     dn.onclick=function(){ move(i,i+1); };
     top.onclick=function(){ move(i,0); };
-    row.appendChild(s); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    ed.onclick=function(){
+      var nv=window.prompt("重命名"+label+"（清空则删除该选项）",v);
+      if(nv===null) return;
+      nv=nv.trim();
+      if(!nv){
+        if(cnt[v]){ toast("有 "+cnt[v]+" 条记录在用，请先改名合并"); return; }
+        ORDER[odim]=items(odim).filter(function(x){return x!==v;});
+        saveOrder(); renderOrder(); chips(odim); renderFilters(); toast("已删除");
+        return;
+      }
+      renameVal(odim,v,nv);
+    };
+    row.appendChild(s); row.appendChild(ed); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
     box.appendChild(row);
   });
   if(!list.length) box.appendChild(el("div","empty","暂无选项"));
@@ -727,9 +759,37 @@ function saveCfg(){
   try{ localStorage.setItem(SBKEY,JSON.stringify(SB)); }catch(e){}
   syncNow();
 }
-function clearCfg(){
-  SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
+function clearCfg(){ SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
   $("#sb-url").value=""; $("#sb-key").value=""; setSync("已断开云端，改为仅本地存储");
+}
+/* 一次性：导入的原始数据难度整体 +1（0→1,1→2,2→3,3→4） */
+function shiftLegacy(){
+  if(!confirm("把飞书导入的原始记录难度整体 +1？\n你自己新加的记录不受影响，且只能执行一次。")) return;
+  if(!sbOn()){ doShift(false); return; }
+  setSync("检查中…");
+  pull().then(function(rows){
+    var done=rows.some(function(r){ return r.id==="_shift_v1"; });
+    if(done){ setSync("该操作已执行过，未重复应用"); toast("已执行过，跳过"); return; }
+    doShift(true);
+  }).catch(function(e){ setSync("检查失败："+e.message); });
+}
+function doShift(markCloud){
+  var touched={}, changed=[], n=0;
+  Object.keys(years).forEach(function(y){
+    (years[y]||[]).forEach(function(r){
+      if(String(r.id).charAt(0)!=="s") return;
+      var v=Math.min(4,(r.level||0)+1);
+      if(v!==r.level){ r.level=v; r.updated_at=Date.now(); touched[y]=1; changed.push(r); n++; }
+    });
+  });
+  Object.keys(touched).forEach(function(y){ writeYear(y); });
+  flatten(); cache(); renderAll();
+  if(changed.length&&sbOn()){
+    var batch=changed.slice();
+    if(markCloud) batch.push({id:"_shift_v1",date:null,deleted:true,updated_at:Date.now()});
+    push(batch).then(function(){ setSync("已提升 "+n+" 条并同步云端"); });
+  }
+  toast("已提升 "+n+" 条");
 }
 Array.prototype.forEach.call($("#theme").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#theme").children,function(x){x.className="";});
@@ -764,6 +824,7 @@ function renderAll(){
 $("#sb-save").onclick=saveCfg;
 $("#sb-sync").onclick=syncNow;
 $("#sb-clear").onclick=clearCfg;
+$("#sb-shift").onclick=shiftLegacy;
 if(sbOn()){ $("#sb-url").value=SB.url; $("#sb-key").value=SB.key; }
 
 buildStars(); resetForm(); renderAll(); initStore();
