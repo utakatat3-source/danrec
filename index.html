@@ -116,6 +116,17 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .pass .warn{color:var(--accent);font-weight:650}
 .meter{height:6px;background:var(--line);border-radius:3px;margin-top:7px;overflow:hidden}
 .meter i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.calhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.calhd b{font-size:15px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.calgrid .wd{text-align:center;font-size:11px;color:var(--muted);padding:3px 0}
+.cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;
+  border-radius:8px;background:transparent;color:var(--text);position:relative}
+.cd.off{color:var(--line)}
+.cd.has::after{content:"";position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.cd.in{background:var(--accent-soft)}
+.cd.end{background:var(--accent);color:#fff;font-weight:700}
+.cd.end::after{background:#fff}
 .hidden{display:none!important}
 </style>
 </head>
@@ -136,10 +147,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="row" style="gap:8px;margin-bottom:8px">
       <div class="sel"><select id="f-time"><option value="">全部时间</option></select></div>
     </div>
-    <div class="row" style="gap:8px;margin-bottom:8px;align-items:center">
-      <input type="date" id="f-from" aria-label="开始日期">
-      <span style="flex:0 0 auto;color:var(--muted);font-size:13px">至</span>
-      <input type="date" id="f-to" aria-label="结束日期">
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <button class="btn ghost" id="f-range" style="font-size:14px;padding:11px 8px">选择日期区间</button>
     </div>
     <div class="row" style="gap:8px;margin-bottom:8px">
       <button class="btn ghost" id="f-7" style="padding:7px 0;font-size:13px">近7天</button>
@@ -163,7 +172,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="field"><label>舞房</label><div class="chips" id="c-studio"></div></div>
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
-    <div class="field"><label>计费方式</label><div class="chips" id="c-bill"></div></div>
+    <div class="field"><label>用哪张卡</label><div class="chips" id="c-bill"></div></div>
     <div class="field"><label>难度</label><div class="stars" id="i-stars"></div></div>
     <div class="field"><label>备注</label><textarea id="i-note" placeholder="小班 / 曲目 / 感受…"></textarea></div>
     <button class="btn" id="save">保存记录</button>
@@ -179,10 +188,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button data-r="0" class="on">全部</button>
   </div>
   <div class="kpis" id="kpis"></div>
-  <div class="card" id="pass-card">
-    <div class="hd"><h2>畅跳卡</h2></div>
-    <div id="pass-body"></div>
-  </div>
   <div class="card">
     <div class="seg" id="dim" style="margin-bottom:12px">
       <button data-d="teacher" class="on">老师</button>
@@ -198,6 +203,11 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <button data-g="week">按周分布</button>
     </div>
     <div class="tbl"><table id="months"></table></div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>花费总览</h2></div>
+    <div class="kpis" id="cost-kpis" style="grid-template-columns:repeat(3,1fr)"></div>
+    <div id="pass-body"></div>
   </div>
 </section>
 
@@ -224,10 +234,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="note" style="margin-top:10px">密钥只存在本机浏览器，不会出现在网站文件里。</div>
   </div>
   <div class="card">
-    <div class="hd"><h2>畅跳卡管理</h2></div>
+    <div class="hd"><h2>卡与花费</h2></div>
     <div id="card-list"></div>
-    <button class="btn ghost" id="card-add" style="margin-top:10px">＋ 添加一张卡</button>
-    <div class="note" style="margin-top:8px">按卡的起止日期统计期内畅跳节数，算出每节均摊价和回本进度。</div>
+    <button class="btn ghost" id="card-add" style="margin-top:10px">＋ 添加卡 / 单次消费</button>
+    <div class="note" style="margin-top:8px">按舞房 + 起止日期自动把课匹配到卡；个别课可在添加页手动指定。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>选项排序</h2></div>
@@ -268,6 +278,49 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="btn" id="dlg-yes">确定</button>
   </div>
 </div></dialog>
+<dialog id="cal"><div class="dlg">
+  <div class="calhd">
+    <button class="obtn" id="cal-prev">‹</button>
+    <b id="cal-title"></b>
+    <button class="obtn" id="cal-next">›</button>
+  </div>
+  <div class="calgrid" id="cal-grid"></div>
+  <div class="note" id="cal-tip" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn ghost" id="cal-clear">清除</button>
+    <button class="btn" id="cal-ok">确定</button>
+  </div>
+</div></dialog>
+
+<dialog id="cdlg"><div class="dlg">
+  <b id="cdlg-title">添加卡</b>
+  <div class="field" style="margin-top:12px"><label>名称</label><input id="cd-name" placeholder="如 大融城畅跳卡①"></div>
+  <div class="field"><label>类型</label><div class="sel"><select id="cd-kind">
+    <option value="pass">期限卡（畅跳，按周限次）</option>
+    <option value="count">次卡（按次数）</option>
+    <option value="month">月限卡（年卡，按月限次）</option>
+    <option value="once">单次消费</option>
+  </select></div></div>
+  <div class="field"><label>舞房（留空=不限）</label><div class="sel"><select id="cd-studio"></select></div></div>
+  <div class="row">
+    <div class="field"><label>开卡日期</label><input type="date" id="cd-start"></div>
+    <div class="field"><label>到期日期</label><input type="date" id="cd-end"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>金额（元）</label><input type="number" id="cd-price" inputmode="decimal"></div>
+    <div class="field"><label id="cd-limit-l">每周限次</label><input type="number" id="cd-limit" inputmode="numeric"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>总次数（次卡用）</label><input type="number" id="cd-total" inputmode="numeric"></div>
+    <div class="field"><label>单次参考价</label><input type="number" id="cd-unit" inputmode="decimal"></div>
+  </div>
+  <div class="note">开卡日期留空 = 未开卡，不参与自动匹配。</div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn ghost" id="cd-cancel">取消</button>
+    <button class="btn" id="cd-save">保存</button>
+  </div>
+</div></dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -383,7 +436,7 @@ function buildStars(){
 function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i].className=(i<lvl?"on":""); }
 function resetForm(){
   editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
-  pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="畅跳";
+  pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="";
   renderFilters(); $("#i-note").value="";
   $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
 }
@@ -391,7 +444,7 @@ function lastVal(f){ return records.length? (records[records.length-1][f]||"") :
 function loadForm(r){
   editing=r.id; lvl=r.level||0;
   $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
-  pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"畅跳";
+  pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"";
   renderFilters(); $("#i-note").value=r.note||"";
   $("#cancel").hidden=false; $("#save").textContent="保存修改";
   paint(); show("add");
@@ -415,7 +468,7 @@ function filtered(){
   var fs=$("#f-studio").value,fy=$("#f-style").value,ft=$("#f-teacher").value;
   var kw=$("#f-kw").value.trim().toLowerCase();
   var ft2=$("#f-time").value;
-  var dFrom=$("#f-from").value, dTo=$("#f-to").value;
+  var dFrom=rFrom, dTo=rTo;
   var rs=records.filter(function(r){
     if(ft2&&r.date.indexOf(ft2)!==0) return false;
     if(dFrom&&r.date<dFrom) return false;
@@ -444,7 +497,9 @@ function renderList(){
     var t=el("div","t");
     t.appendChild(el("span","pill no","#"+r.no));
     if(r.style) t.appendChild(el("span","pill",r.style));
-    if(r.bill&&r.bill!=="畅跳") t.appendChild(el("span","pill",r.bill));
+    var bc=billMap[r.id];
+    if(bc&&bc!=="self"){ var bcd=cardById(bc); if(bcd&&bcd.studio!==r.studio) t.appendChild(el("span","pill",bcd.name)); }
+    if(bc==="self") t.appendChild(el("span","pill","单独付费"));
     t.appendChild(document.createTextNode(r.teacher||"—"));
     mm.appendChild(t);
     var meta=[]; if(r.week) meta.push(r.week); if(r.studio) meta.push(r.studio);
@@ -485,13 +540,15 @@ function items(f){
   freq.forEach(function(v){ if(!seen[v]){ seen[v]=1; out.push(v); } });
   return out;
 }
-var BILLS=["畅跳","非畅跳","大师","其他"];
-var pick={studio:"",style:"",teacher:"",bill:"畅跳"}, expand={};
+var pick={studio:"",style:"",teacher:"",bill:""}, expand={};
 function billChips(){
   var box=$("#c-bill"); if(!box) return; box.innerHTML="";
-  BILLS.forEach(function(v){
-    var b=el("button","chip"+(pick.bill===v?" on":""),v); b.type="button";
-    b.onclick=function(){ pick.bill=v; billChips(); };
+  var opts=[{v:"",t:"自动匹配"}];
+  liveCards().forEach(function(c){ if(c.kind!=="once") opts.push({v:c.id,t:c.name}); });
+  opts.push({v:"self",t:"单独付费"});
+  opts.forEach(function(o){
+    var b=el("button","chip"+(pick.bill===o.v?" on":""),o.t); b.type="button";
+    b.onclick=function(){ pick.bill=o.v; billChips(); };
     box.appendChild(b);
   });
 }
@@ -572,7 +629,7 @@ function setBillFor(f,v,bill){
   Object.keys(touched).forEach(function(y){ writeYear(y); });
   if(changed.length) push(changed);
   flatten(); cache(); renderAll(); renderOrder();
-  toast("已标记 "+changed.length+" 条为「"+bill+"」");
+  toast("已更新 "+changed.length+" 条");
 }
 function renderOrder(){
   var box=$("#ord-list"); box.innerHTML="";
@@ -586,11 +643,15 @@ function renderOrder(){
     var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"),
         up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
     bl.onclick=function(){
-      var t=window.prompt("把「"+v+"」的全部 "+(cnt[v]||0)+" 条记录标为哪种计费？\n1 = 畅跳\n2 = 非畅跳\n3 = 大师\n4 = 其他","2");
-      if(!t) return;
-      var m={"1":"畅跳","2":"非畅跳","3":"大师","4":"其他"}[t.trim()];
-      if(!m){ toast("请输入 1-4"); return; }
-      setBillFor(odim,v,m);
+      var opts=[{v:"",t:"自动匹配"}];
+      liveCards().forEach(function(c){ if(c.kind!=="once") opts.push({v:c.id,t:c.name}); });
+      opts.push({v:"self",t:"单独付费"});
+      var msg="把「"+v+"」的全部 "+(cnt[v]||0)+" 条记录指定到：\n";
+      opts.forEach(function(o,i){ msg+=(i+1)+" = "+o.t+"\n"; });
+      var t=window.prompt(msg,"1"); if(!t) return;
+      var o=opts[parseInt(t.trim(),10)-1];
+      if(!o){ toast("序号无效"); return; }
+      setBillFor(odim,v,o.v);
     };
     function move(from,to){
       var l=items(odim);
@@ -622,16 +683,66 @@ Array.prototype.forEach.call($("#ord-dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#ord-dim").children,function(x){x.className="";});
     b.className="on"; odim=b.dataset.d; renderOrder(); };
 });
-["#f-studio","#f-style","#f-teacher","#f-time","#f-from","#f-to"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
+["#f-studio","#f-style","#f-teacher","#f-time"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
 function daysAgo(n){ var d=new Date(Date.now()-n*86400000); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
-function quickRange(n){
-  $("#f-time").value=""; $("#f-from").value=daysAgo(n); $("#f-to").value=today();
+/* ---- 单日历区间选择 ---- */
+var rFrom="", rTo="", calY=0, calM=0;
+function rangeLabel(){
+  if(rFrom&&rTo) return rFrom+" 至 "+rTo;
+  if(rFrom) return rFrom+" 起";
+  if(rTo) return "截至 "+rTo;
+  return "选择日期区间";
+}
+function openCal(){
+  var base=rFrom||today();
+  calY=parseInt(base.slice(0,4),10); calM=parseInt(base.slice(5,7),10)-1;
+  drawCal(); $("#cal").showModal();
+}
+function drawCal(){
+  $("#cal-title").textContent=calY+" 年 "+(calM+1)+" 月";
+  var g=$("#cal-grid"); g.innerHTML="";
+  ["日","一","二","三","四","五","六"].forEach(function(d){ g.appendChild(el("div","wd",d)); });
+  var first=new Date(calY,calM,1), pad0=first.getDay();
+  var days=new Date(calY,calM+1,0).getDate();
+  var has={}; records.forEach(function(r){ has[r.date]=(has[r.date]||0)+1; });
+  for(var i=0;i<pad0;i++) g.appendChild(el("div","cd off",""));
+  for(var d=1;d<=days;d++){(function(d){
+    var ds=calY+"-"+pad(calM+1)+"-"+pad(d);
+    var cls="cd";
+    if(has[ds]) cls+=" has";
+    if(rFrom&&rTo&&ds>rFrom&&ds<rTo) cls+=" in";
+    if(ds===rFrom||ds===rTo) cls+=" end";
+    var b=el("button",cls,String(d)); b.type="button";
+    b.onclick=function(){
+      if(!rFrom||(rFrom&&rTo)){ rFrom=ds; rTo=""; }
+      else if(ds<rFrom){ rTo=rFrom; rFrom=ds; }
+      else rTo=ds;
+      drawCal();
+    };
+    g.appendChild(b);
+  })(d);}
+  $("#cal-tip").textContent = rFrom&&rTo? ("已选 "+rFrom+" 至 "+rTo)
+    : rFrom? ("起点 "+rFrom+"，再点一天选终点（只选一天就点确定）") : "点一天选起点，再点一天选终点";
+}
+$("#cal-prev").onclick=function(){ calM--; if(calM<0){calM=11;calY--;} drawCal(); };
+$("#cal-next").onclick=function(){ calM++; if(calM>11){calM=0;calY++;} drawCal(); };
+$("#cal-clear").onclick=function(){ rFrom=""; rTo=""; drawCal(); };
+$("#cal-ok").onclick=function(){
+  if(rFrom&&!rTo) rTo=rFrom;
+  $("#cal").close(); $("#f-range").textContent=rangeLabel();
+  if(rFrom) $("#f-time").value="";
   page=60; renderList();
+};
+$("#f-range").onclick=openCal;
+function quickRange(n){
+  rFrom=daysAgo(n); rTo=today(); $("#f-time").value="";
+  $("#f-range").textContent=rangeLabel(); page=60; renderList();
 }
 $("#f-7").onclick=function(){ quickRange(7); };
 $("#f-30").onclick=function(){ quickRange(30); };
 $("#f-clear").onclick=function(){
-  $("#f-time").value=""; $("#f-from").value=""; $("#f-to").value="";
+  rFrom=""; rTo=""; $("#f-range").textContent=rangeLabel();
+  $("#f-time").value="";
   $("#f-studio").value=""; $("#f-style").value=""; $("#f-teacher").value=""; $("#f-kw").value="";
   page=60; renderList();
 };
@@ -869,97 +980,186 @@ function saveCfg(){
   try{ localStorage.setItem(SBKEY,JSON.stringify(SB)); }catch(e){}
   syncNow();
 }
-/* ========== 畅跳卡 ========== */
-var CKEY="dance_cards_v1", CARDS=[];
+/* ========== 卡与花费 ========== */
+var CKEY="dance_cards_v2", CARDS=[];
 try{ CARDS=JSON.parse(localStorage.getItem(CKEY)||"[]"); }catch(e){ CARDS=[]; }
+try{
+  var oldc=JSON.parse(localStorage.getItem("dance_cards_v1")||"[]");
+  if(oldc.length&&!CARDS.length){
+    CARDS=oldc.map(function(c){
+      return {id:c.id,name:c.name,kind:"pass",studio:"",start:c.start,end:c.end,
+        price:c.price,limit:c.weekLimit||0,total:0,unit:c.unit||0,
+        updated_at:c.updated_at||Date.now(),deleted:!!c.deleted};
+    });
+  }
+}catch(e){}
 function saveCards(){ try{ localStorage.setItem(CKEY,JSON.stringify(CARDS)); }catch(e){} }
+function liveCards(){ return CARDS.filter(function(c){ return !c.deleted; }); }
+function cardById(id){
+  for(var i=0;i<CARDS.length;i++) if(CARDS[i].id===id&&!CARDS[i].deleted) return CARDS[i];
+  return null;
+}
 function cardRow(c){
   return {id:c.id,date:null,week:"",studio:"",style:"",teacher:"",bill:"_card",
     level:0,note:JSON.stringify(c),seq:0,deleted:!!c.deleted,updated_at:c.updated_at||Date.now()};
 }
 function pushCards(list){ if(sbOn()&&list.length) push(list.map(cardRow)); }
-function isPass(r){ return !r.bill || r.bill==="畅跳"; }
-function inCard(r,c){ return r.date>=c.start && (!c.end || r.date<=c.end); }
-function cardStats(c){
-  var used=records.filter(function(r){ return isPass(r)&&inCard(r,c); });
-  var wk=weekOf(today());
-  var thisWeek=used.filter(function(r){ return (r.week||weekOf(r.date))===wk; }).length;
-  var per=used.length? (c.price/used.length):0;
-  var need=(c.unit&&c.unit>0)? Math.ceil(c.price/c.unit):0;
-  return {n:used.length,thisWeek:thisWeek,per:per,need:need,
-    saved:(c.unit>0? used.length*c.unit-c.price:0)};
+
+/* 自动把一节课匹配到某张卡：舞房对得上 + 日期在有效期内，取最近开的那张 */
+function autoCard(r){
+  var best=null;
+  liveCards().forEach(function(c){
+    if(c.kind==="once") return;
+    if(!c.start) return;
+    if(c.studio && c.studio!==r.studio) return;
+    if(r.date<c.start) return;
+    if(c.end && r.date>c.end) return;
+    if(!best || c.start>best.start) best=c;
+  });
+  return best;
+}
+var billMap={};
+function computeBills(){
+  billMap={};
+  records.forEach(function(r){
+    var c=null;
+    if(r.bill==="self") c=null;
+    else if(r.bill && String(r.bill).indexOf("_card_")===0) c=cardById(r.bill)||autoCard(r);
+    else c=autoCard(r);
+    billMap[r.id]=c? c.id:"self";
+  });
+}
+function monthOf(d){ return (d||"").slice(0,7); }
+function cardUsage(c){
+  var used=records.filter(function(r){ return billMap[r.id]===c.id; });
+  var wk=weekOf(today()), mo=monthOf(today());
+  return {
+    n:used.length,
+    week:used.filter(function(r){ return (r.week||weekOf(r.date))===wk; }).length,
+    month:used.filter(function(r){ return monthOf(r.date)===mo; }).length,
+    per:used.length? c.price/used.length:0
+  };
+}
+function kindName(k){
+  return {pass:"期限卡",count:"次卡",month:"月限卡",once:"单次消费"}[k]||"卡";
 }
 function renderPass(){
   var box=$("#pass-body"); if(!box) return;
   box.innerHTML="";
-  var live=CARDS.filter(function(c){ return !c.deleted; })
-    .sort(function(a,b){ return a.start<b.start?1:-1; });
-  if(!live.length){ box.appendChild(el("div","empty","还没有添加畅跳卡，去「设置 → 畅跳卡管理」添加")); return; }
+  var kb=$("#cost-kpis");
+  var all=liveCards();
+  var spent=all.reduce(function(a,c){ return a+(c.price||0); },0);
+  var n=records.length;
+  if(kb){
+    kb.innerHTML="";
+    [["¥"+spent.toLocaleString(),"总投入"],[n,"总课数"],[n?("¥"+(spent/n).toFixed(0)):"—","每节均价"]]
+    .forEach(function(p){ var d=el("div","kpi"); d.appendChild(el("b",null,p[0])); d.appendChild(el("span",null,p[1])); kb.appendChild(d); });
+  }
+  if(!all.length){ box.appendChild(el("div","empty","还没有添加卡，去「设置 → 卡与花费」添加")); return; }
   var td=today();
-  live.forEach(function(c){
-    var s=cardStats(c), active=(td>=c.start&&(!c.end||td<=c.end));
+  all.slice().sort(function(a,b){ return (b.start||"")<(a.start||"")?-1:1; }).forEach(function(c){
+    var u=cardUsage(c), active=(c.start&&td>=c.start&&(!c.end||td<=c.end));
     var w=el("div","pass");
-    var h1=el("b",null,c.name+(active?"　· 使用中":""));
-    w.appendChild(h1);
-    w.appendChild(el("div","meta",c.start+" 至 "+(c.end||"无限期")));
+    w.appendChild(el("b",null,c.name+(active?"　· 使用中":(c.start?"":"　· 未开卡"))));
+    var sub=[kindName(c.kind)];
+    if(c.studio) sub.push(c.studio);
+    if(c.start) sub.push(c.start+" 至 "+(c.end||"不限"));
+    w.appendChild(el("div","meta",sub.join(" · ")));
     function line(k,v,warn){
-      var d=el("div","line");
-      d.appendChild(el("span",null,k));
-      var e=el("span",warn?"warn":null,v); d.appendChild(e); w.appendChild(d);
+      var d=el("div","line"); d.appendChild(el("span",null,k));
+      d.appendChild(el("span",warn?"warn":null,v)); w.appendChild(d);
     }
-    if(c.weekLimit>0&&active){
-      line("本周已约（"+weekOf(td)+"）",s.thisWeek+" / "+c.weekLimit, s.thisWeek>=c.weekLimit);
-      var m=el("div","meter"); var i=el("i");
-      i.style.width=Math.min(100,Math.round(s.thisWeek/c.weekLimit*100))+"%";
-      m.appendChild(i); w.appendChild(m);
+    if(c.kind==="once"){ line("金额","¥"+c.price); box.appendChild(w); return; }
+    if(c.kind==="pass"&&c.limit>0&&active){
+      line("本周已约（"+weekOf(td)+"）",u.week+" / "+c.limit,u.week>=c.limit);
+      var m1=el("div","meter"),i1=el("i");
+      i1.style.width=Math.min(100,Math.round(u.week/c.limit*100))+"%"; m1.appendChild(i1); w.appendChild(m1);
     }
-    line("本卡累计畅跳",s.n+" 节");
+    if(c.kind==="month"&&c.limit>0&&active){
+      line("本月已约（"+monthOf(td)+"）",u.month+" / "+c.limit,u.month>=c.limit);
+      var m2=el("div","meter"),i2=el("i");
+      i2.style.width=Math.min(100,Math.round(u.month/c.limit*100))+"%"; m2.appendChild(i2); w.appendChild(m2);
+    }
+    if(c.kind==="count"&&c.total>0){
+      line("已用 / 总次数",u.n+" / "+c.total,u.n>=c.total);
+      var m3=el("div","meter"),i3=el("i");
+      i3.style.width=Math.min(100,Math.round(u.n/c.total*100))+"%"; m3.appendChild(i3); w.appendChild(m3);
+      line("剩余",Math.max(0,c.total-u.n)+" 次");
+    } else {
+      line("累计上课",u.n+" 节");
+    }
     if(c.price>0){
       line("卡费","¥"+c.price);
-      line("每节均摊", s.n? ("¥"+s.per.toFixed(1)):"—");
+      line("每节均摊",u.n? ("¥"+u.per.toFixed(1)):"—");
       if(c.unit>0){
-        if(s.n>=s.need) line("回本状态","已回本，省 ¥"+Math.round(s.saved));
-        else line("回本还需",(s.need-s.n)+" 节（按单次 ¥"+c.unit+"）", true);
+        var need=Math.ceil(c.price/c.unit);
+        if(u.n>=need) line("回本状态","已回本，省 ¥"+Math.round(u.n*c.unit-c.price));
+        else line("回本还需",(need-u.n)+" 节（单次 ¥"+c.unit+"）",true);
       }
     }
     box.appendChild(w);
   });
 }
-function editCard(c){
-  var isNew=!c;
-  c=c||{id:"_card_"+Date.now().toString(36),name:"",start:today(),end:"",price:0,weekLimit:0,unit:0};
-  var name=window.prompt("卡名称（如 大融城畅跳卡）",c.name); if(name===null) return;
-  var start=window.prompt("开卡日期 YYYY-MM-DD",c.start); if(start===null) return;
-  var end=window.prompt("到期日期 YYYY-MM-DD（不限期留空）",c.end); if(end===null) return;
-  var price=window.prompt("卡费（元）",c.price); if(price===null) return;
-  var wl=window.prompt("每周限约次数（不限填 0）",c.weekLimit); if(wl===null) return;
-  var unit=window.prompt("单次课参考价（元，用于算回本；不算填 0）",c.unit); if(unit===null) return;
-  c.name=name.trim()||"畅跳卡";
-  c.start=(start||"").trim(); c.end=(end||"").trim();
-  c.price=parseFloat(price)||0; c.weekLimit=parseInt(wl,10)||0; c.unit=parseFloat(unit)||0;
+/* ---- 卡编辑弹窗 ---- */
+var editingCard=null;
+function openCardDlg(c){
+  editingCard=c||{id:"_card_"+Date.now().toString(36),name:"",kind:"pass",studio:"",
+    start:"",end:"",price:0,limit:0,total:0,unit:0};
+  $("#cdlg-title").textContent=c?"编辑卡":"添加卡";
+  $("#cd-name").value=editingCard.name||"";
+  $("#cd-kind").value=editingCard.kind||"pass";
+  var ss=$("#cd-studio"); ss.innerHTML=""; ss.appendChild(new Option("不限",""));
+  items("studio").forEach(function(v){ ss.appendChild(new Option(v,v)); });
+  if(editingCard.studio&&!Array.prototype.some.call(ss.options,function(o){return o.value===editingCard.studio;}))
+    ss.appendChild(new Option(editingCard.studio,editingCard.studio));
+  ss.value=editingCard.studio||"";
+  $("#cd-start").value=editingCard.start||"";
+  $("#cd-end").value=editingCard.end||"";
+  $("#cd-price").value=editingCard.price||"";
+  $("#cd-limit").value=editingCard.limit||"";
+  $("#cd-total").value=editingCard.total||"";
+  $("#cd-unit").value=editingCard.unit||"";
+  syncKindLabel();
+  $("#cdlg").showModal();
+}
+function syncKindLabel(){
+  var k=$("#cd-kind").value;
+  $("#cd-limit-l").textContent = k==="month"? "每月限次":"每周限次";
+}
+function saveCardDlg(){
+  var c=editingCard;
+  c.name=$("#cd-name").value.trim()||"未命名卡";
+  c.kind=$("#cd-kind").value;
+  c.studio=$("#cd-studio").value;
+  c.start=$("#cd-start").value;
+  c.end=$("#cd-end").value;
+  c.price=parseFloat($("#cd-price").value)||0;
+  c.limit=parseInt($("#cd-limit").value,10)||0;
+  c.total=parseInt($("#cd-total").value,10)||0;
+  c.unit=parseFloat($("#cd-unit").value)||0;
   c.updated_at=Date.now(); c.deleted=false;
-  if(isNew) CARDS.push(c);
+  if(!cardById(c.id)) CARDS.push(c);
   else CARDS=CARDS.map(function(x){ return x.id===c.id? c:x; });
-  saveCards(); pushCards([c]); renderCards(); renderPass(); toast("已保存");
+  saveCards(); pushCards([c]); $("#cdlg").close();
+  computeBills(); renderCards(); renderPass(); billChips(); toast("已保存");
 }
 function renderCards(){
   var box=$("#card-list"); if(!box) return;
   box.innerHTML="";
-  var live=CARDS.filter(function(c){ return !c.deleted; })
-    .sort(function(a,b){ return a.start<b.start?1:-1; });
+  var live=liveCards().slice().sort(function(a,b){ return (b.start||"")<(a.start||"")?-1:1; });
   if(!live.length){ box.appendChild(el("div","empty","还没有卡")); return; }
   live.forEach(function(c){
-    var s=cardStats(c);
+    var u=cardUsage(c);
     var row=el("div","orow");
     var t=el("span");
     t.appendChild(document.createTextNode(c.name));
-    t.appendChild(el("small",null,"  "+c.start+"~"+(c.end||"不限")+" · "+s.n+" 节"));
-    var ed=el("button","obtn","✎"); ed.onclick=function(){ editCard(c); };
+    t.appendChild(el("small",null,"  ¥"+c.price+" · "+kindName(c.kind)+" · "+u.n+" 节"));
+    var ed=el("button","obtn","✎"); ed.onclick=function(){ openCardDlg(c); };
     var rm=el("button","obtn","✕");
     rm.onclick=function(){
-      if(!confirm("删除卡「"+c.name+"」？上课记录不受影响。")) return;
+      if(!confirm("删除「"+c.name+"」？上课记录不受影响。")) return;
       c.deleted=true; c.updated_at=Date.now();
-      saveCards(); pushCards([c]); renderCards(); renderPass();
+      saveCards(); pushCards([c]); computeBills(); renderCards(); renderPass(); billChips();
     };
     row.appendChild(t); row.appendChild(ed); row.appendChild(rm);
     box.appendChild(row);
@@ -1021,7 +1221,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(
 });
 
 function renderAll(){
-  renderFilters(); renderList();
+  computeBills(); renderFilters(); renderList();
   if(!$("#v-stats").classList.contains("hidden")) renderStats();
   var n=records.length;
   if(!n){ $("#sub").textContent="还没有记录"+""; return; }
@@ -1031,7 +1231,10 @@ $("#sb-save").onclick=saveCfg;
 $("#sb-sync").onclick=syncNow;
 $("#sb-clear").onclick=clearCfg;
 $("#sb-shift").onclick=shiftLegacy;
-$("#card-add").onclick=function(){ editCard(null); };
+$("#card-add").onclick=function(){ openCardDlg(null); };
+$("#cd-save").onclick=saveCardDlg;
+$("#cd-cancel").onclick=function(){ $("#cdlg").close(); };
+$("#cd-kind").onchange=syncKindLabel;
 if(sbOn()){ $("#sb-url").value=SB.url; $("#sb-key").value=SB.key; }
 
 buildStars(); resetForm(); renderAll(); initStore();
