@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="舞蹈记录">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAADN0lEQVR42u3d3XHCMBBF4eChprQBpZBK0gptQFV5yAwP5AdsbGm1+53HzAQ80vFdCcvS7nI4vQG/MWkCkAPkADlADpAD5AA5QA6QA+QAyAFygBwgB8gBcoAcIAfIAXIA5AA5QA6QA+QAOUAOkAPkADkAcoAcmM9eE9zxfv78+cfr8aNgU+xs+/SPE8UtIcezWhRUZGJGs/+SHMm1KBUhEzMifA45QI4ysZE+PCZm8IMcIEenWzxleEgOkAPk6Jj8+SqL5AA5QA6QA+RA16EuOaJr8W1GFz8KybH12ot1P/+mhbKCx1q0d8Xqc2OLPym3THCjDnixpjx/VS0XJiorQYtIhHQpJ8cWd97izwz+OKbo6vMVe2WZGS9eQJviYkBafdQpObbqpFl38LpaNAiP6q9DLu6w3FqQY3nPPd89qxeRllNZcszrxSJaBJLj/fwZ56XT1/fnSKBFLDm6N0TMmUjf1ugvR46ddLaYoHZvhH3wto5vSUotQiRH5M2WHo6EEmsxkhzt2+7/6EqvxTeDPXiLsD6qiBmdk+P1Vt6oTe8u7PYtdbQIPSCd1YsN2reaFp2TI2xzNyhbo0zUUz2yH2ICPNBPOIPNVrbuhmjXU1qONkne8WnZoFoEkiPIjcuM0HL0DZJkj81yytFFkUEXaxWVo/HEcq0vyrQb+hgrwUZZsZ1sn/yRlglGViTl8QlDriENZUniUzUGXmDcXZH05zUNv/q8lyIVTvJK8mpCF0XS+5HkLfvr8aPm6Z6SI26QOONNkEiOpMR55Cs5pIjkkCIFwqPWnmBShBytw8PpkJAcYkN4SA6Qo93N7QBASA6xITwkB6rL0fKGzhQekgPkaEWmn+cnHQbJAXKAHOoXOUAOkEPgk8OAgxyQHCAHQA4DDnKYsJAD5AA5FCxygBwgh/wnB8oJRw6QA+RQU8ihO8kBcoAcKhQ5QA6QQzkgBxhGDpAD5AA5DDjIoXfJAXKAHEpSWvY6ey4N9igO4p/kADlMWMgBcsCANFhlyXpEqOQAOUAOkAPkQEh2l8NJK0BygBwgB8gBcoAcIAfIAXKAHAA5QA6QA+QAOUAOkAPkADlADoAcIAcW8gW8yFsi0FYxOAAAAABJRU5ErkJggg==">
+<title>舞蹈上课记录</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#faf7f5;--card:#fff;--text:#1c1917;--muted:#79716b;--line:#e8e3df;
+  --accent:#c94f70;--accent-soft:#fce9ee;--star:#e8a33d;--radius:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#17130f;--card:#231e1a;--text:#f5f1ec;--muted:#a9a19a;--line:#342f29;
+  --accent:#ef7593;--accent-soft:#3b2028;--star:#f2b94f;}}
+:root[data-theme="dark"]{
+  --bg:#17130f;--card:#231e1a;--text:#f5f1ec;--muted:#a9a19a;--line:#342f29;
+  --accent:#ef7593;--accent-soft:#3b2028;--star:#f2b94f;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:80px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line);padding:12px 16px 10px}
+h1{font-size:18px;margin:0;font-weight:650}
+.sub{font-size:12px;color:var(--muted);margin-top:2px}
+main{padding:14px 14px 20px;max-width:760px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600}
+input,select,textarea{width:100%;max-width:100%;padding:0 11px;font-size:16px;font-family:inherit;
+  height:46px;line-height:44px;-webkit-appearance:none;appearance:none;
+  border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);
+  text-align:left;vertical-align:middle}
+input[type=date]{min-height:46px;display:block}
+textarea{height:auto;min-height:60px;padding:10px 11px;line-height:1.5;resize:vertical}
+select{padding-right:30px}
+.sel{position:relative}
+.sel::after{content:"▾";position:absolute;right:11px;top:0;line-height:46px;
+  color:var(--muted);pointer-events:none;font-size:13px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.row{display:flex;gap:10px;align-items:flex-start}.row>*{flex:1;min-width:0}
+.field{margin-bottom:12px}
+button{font-family:inherit;font-size:15px;cursor:pointer;border:none;background:none;color:inherit}
+.btn{background:var(--accent);color:#fff;padding:12px;border-radius:11px;width:100%;font-weight:650}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:500}
+.btn.sm{padding:7px 11px;width:auto;font-size:13px;border-radius:9px}
+.stars{display:flex;gap:9px}
+.stars button{font-size:30px;line-height:1;color:var(--line);padding:0}
+.stars button.on{color:var(--star)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--card);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;padding:10px 4px 12px;font-size:11px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabs button.on{color:var(--accent);font-weight:650}
+.tabs .ic{font-size:19px;line-height:1}
+.mon{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;
+  padding:12px 0 5px;border-bottom:1px solid var(--line)}
+.rec{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.rec .d{flex:0 0 40px;text-align:center;padding-top:1px}
+.rec .d b{display:block;font-size:19px;line-height:1.05;font-weight:650}
+.rec .d span{font-size:10px;color:var(--muted)}
+.rec .m{flex:1;min-width:0}
+.rec .t{font-weight:650;font-size:15px}
+.rec .meta{font-size:12px;color:var(--muted);margin-top:2px;word-break:break-word}
+.rec .st{font-size:12px;color:var(--star);letter-spacing:1px}
+.pill.no{background:transparent;color:var(--muted);padding:2px 0;margin-right:7px}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;background:var(--accent-soft);
+  color:var(--accent);font-size:11px;font-weight:650;margin-right:5px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:11px 4px;text-align:center}
+.kpi b{display:block;font-size:19px;font-weight:700;line-height:1.2}
+.kpi span{font-size:10px;color:var(--muted)}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.seg button{flex:1;padding:8px 2px;font-size:13px;color:var(--muted);background:var(--card)}
+.seg button.on{background:var(--accent);color:#fff;font-weight:650}
+.tbl{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:86px}
+th{font-size:11px;color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+th.act{color:var(--accent)}
+.bar{height:4px;background:var(--accent);border-radius:2px;margin-top:4px;min-width:2px}
+.empty{text-align:center;color:var(--muted);padding:32px 14px;font-size:14px}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.hd h2{font-size:14px;margin:0;font-weight:650}
+.note{font-size:12px;color:var(--muted);line-height:1.6}
+.more{text-align:center;padding:12px 0 2px}
+dialog{border:none;border-radius:16px;padding:0;background:var(--card);color:var(--text);max-width:92vw;width:360px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;background:var(--text);
+  color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;z-index:99;opacity:0;
+  transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:8px 13px;border:1px solid var(--line);border-radius:99px;font-size:14px;
+  background:var(--bg);color:var(--text);line-height:1.2}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:650}
+.chip.add{color:var(--muted);border-style:dashed}
+.orow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.orow span{flex:1;min-width:0;font-size:14px}
+.orow small{color:var(--muted);font-size:12px}
+.obtn{width:38px;height:34px;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>舞蹈上课记录</h1>
+  <div class="sub" id="sub">加载中…</div>
+</header>
+
+<main>
+<section id="v-list">
+  <div class="card" style="padding:10px 12px">
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="sel"><select id="f-studio"><option value="">全部舞房</option></select></div>
+      <div class="sel"><select id="f-style"><option value="">全部舞种</option></select></div>
+      <div class="sel"><select id="f-teacher"><option value="">全部老师</option></select></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <input id="f-kw" placeholder="搜索老师 / 备注">
+      <button class="btn ghost" id="f-sort" style="flex:0 0 auto;height:46px;padding:0 12px;font-size:13px;width:auto">最新在前 ↓</button>
+    </div>
+  </div>
+  <div class="card" id="listbox"></div>
+</section>
+
+<section id="v-add" class="hidden">
+  <div class="card">
+    <div class="row">
+      <div class="field"><label>上课时间</label><input type="date" id="i-date"></div>
+      <div class="field"><label>周数</label><input id="i-week" placeholder="第N周"></div>
+    </div>
+    <div class="field"><label>舞房</label><div class="chips" id="c-studio"></div></div>
+    <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
+    <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
+    <div class="field"><label>难度</label><div class="stars" id="i-stars"></div></div>
+    <div class="field"><label>备注</label><textarea id="i-note" placeholder="小班 / 曲目 / 感受…"></textarea></div>
+    <button class="btn" id="save">保存记录</button>
+    <button class="btn ghost" id="cancel" style="margin-top:8px" hidden>取消编辑</button>
+  </div>
+</section>
+
+<section id="v-stats" class="hidden">
+  <div class="seg" id="range">
+    <button data-r="30">近30天</button>
+    <button data-r="90">近3月</button>
+    <button data-r="365">近1年</button>
+    <button data-r="0" class="on">全部</button>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card">
+    <div class="seg" id="dim" style="margin-bottom:12px">
+      <button data-d="teacher" class="on">老师</button>
+      <button data-d="style">舞种</button>
+      <button data-d="studio">舞房</button>
+    </div>
+    <div class="tbl"><table id="agg"></table></div>
+    <div class="note" style="margin-top:10px">点表头切换排序：课数 / 平均难度 / 最近一次。</div>
+  </div>
+  <div class="card">
+    <div class="seg" id="gran">
+      <button data-g="month" class="on">按月分布</button>
+      <button data-g="week">按周分布</button>
+    </div>
+    <div class="tbl"><table id="months"></table></div>
+  </div>
+</section>
+
+<section id="v-set" class="hidden">
+  <div class="card">
+    <div class="hd"><h2>数据</h2></div>
+    <button class="btn ghost" id="exp">导出 CSV（按时间排序）</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" id="imp">导入 CSV</button>
+    <input type="file" id="file" accept=".csv,text/csv" class="hidden">
+    <div class="note" style="margin-top:10px">CSV 表头含：日期、舞房、舞种、老师、难度、备注（顺序不限）。导入为追加，不会覆盖现有记录。</div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>云端同步</h2></div>
+    <div class="note" id="sync-msg" style="margin-bottom:10px">未配置，数据仅存在本机</div>
+    <div class="field"><label>Project URL</label><input id="sb-url" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off"></div>
+    <div class="field"><label>Publishable key</label><input id="sb-key" placeholder="sb_publishable_..." autocapitalize="off" autocorrect="off"></div>
+    <div class="row">
+      <button class="btn" id="sb-save">保存并同步</button>
+      <button class="btn ghost" id="sb-sync">立即同步</button>
+    </div>
+    <button class="btn ghost" id="sb-clear" style="margin-top:8px">断开云端</button>
+    <div class="note" style="margin-top:10px">密钥只存在本机浏览器，不会出现在网站文件里。</div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>选项排序</h2></div>
+    <div class="seg" id="ord-dim">
+      <button data-d="teacher" class="on">老师</button>
+      <button data-d="style">舞种</button>
+      <button data-d="studio">舞房</button>
+    </div>
+    <div id="ord-list"></div>
+    <div class="note" style="margin-top:8px">调整后，添加记录时按钮就按这个顺序排。</div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>外观</h2></div>
+    <div class="seg" id="theme">
+      <button data-t="auto" class="on">跟随系统</button>
+      <button data-t="light">浅色</button>
+      <button data-t="dark">深色</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>加到手机桌面</h2></div>
+    <div class="note">Safari 打开本页 → 底部分享按钮 → 添加到主屏幕。<br>若没看到该选项，滚到列表最底部点「编辑操作」把它加进来。</div>
+  </div>
+</section>
+</main>
+
+<nav class="tabs">
+  <button data-v="list" class="on"><span class="ic">📋</span>记录</button>
+  <button data-v="add"><span class="ic">➕</span>添加</button>
+  <button data-v="stats"><span class="ic">📊</span>统计</button>
+  <button data-v="set"><span class="ic">⚙️</span>设置</button>
+</nav>
+
+<dialog id="dlg"><div class="dlg">
+  <div id="dlg-body"></div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn ghost" id="dlg-no">取消</button>
+    <button class="btn" id="dlg-yes">确定</button>
+  </div>
+</div></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+var SEED={"S":["BODY SOUL淮海中路","DANCE STAR 北新泾","DANCE STAR 大融城","DANCE STAR 虹桥店","GH5"],"Y":["hiphop","kpop女团","kpop男团","swag","基本功","抖舞","抖舞街舞","爵士编舞","爵士舞","编舞","街舞编舞"],"T":["21","BADA","BT","Elaine","FJ","GG","JOHN","JUN","QIAN茜","SUNNY","Siri","一开","乔乔","代课","兔兔","包包","可一","图图","夏天","大轩","大雯","奶盖","妖妖","小D","小嘉","峰峰","彼得潘","方块","朱仔","林瑞","梦帆帆","梦琦","烧烤","猫猫","玉米","琳宝","糯米","红镜","良良","萍萍","萝卜","蓝天","镁镁","阳阳","阿九","雪瑶","高高"],"R":[["2025-02-18",2,8,33,0,"第1周","",1],["2025-02-19",2,8,34,0,"第1周","",2],["2025-02-19",2,5,14,1,"第1周","",3],["2025-02-20",2,4,38,0,"第1周","",4],["2025-02-20",2,8,39,0,"第1周","",5],["2025-02-21",2,0,19,0,"第1周","",6],["2025-02-21",2,8,12,0,"第1周","",7],["2025-02-22",2,8,39,0,"第1周","",8],["2025-02-22",2,8,25,0,"第1周","",9],["2025-02-23",2,8,34,0,"第1周","",10],["2025-02-23",2,8,25,0,"第1周","",11],["2025-02-23",2,8,25,0,"第1周","小班",12],["2025-02-23",2,8,25,0,"第1周","小班",13],["2025-02-24",2,8,26,1,"第2周","",14],["2025-02-24",2,8,38,0,"第2周","",15],["2025-02-25",2,10,32,1,"第2周","",16],["2025-02-25",2,8,34,0,"第2周","",17],["2025-02-26",2,8,34,0,"第2周","",18],["2025-02-26",2,5,14,1,"第2周","",19],["2025-02-27",2,4,38,0,"第2周","",20],["2025-02-27",2,6,6,0,"第2周","",21],["2025-02-28",2,8,12,0,"第2周","",22],["2025-03-02",2,8,34,0,"第2周","",23],["2025-03-02",2,8,25,0,"第2周","",24],["2025-03-02",2,8,25,0,"第2周","小班",25],["2025-03-02",2,8,25,0,"第2周","小班",26],["2025-03-03",2,8,26,1,"第3周","",27],["2025-03-03",2,8,38,0,"第3周","",28],["2025-03-04",2,10,32,1,"第3周","",29],["2025-03-04",2,8,36,0,"第3周","",30],["2025-03-05",2,8,34,0,"第3周","",31],["2025-03-05",2,10,28,1,"第3周","",32],["2025-03-05",2,5,14,1,"第3周","",33],["2025-03-06",2,4,38,0,"第3周","",34],["2025-03-06",2,6,6,0,"第3周","",35],["2025-03-08",2,10,4,1,"第3周","",36],["2025-03-08",2,8,34,0,"第3周","",37],["2025-03-08",2,8,39,0,"第3周","",38],["2025-03-08",2,3,45,0,"第3周","",39],["2025-03-09",2,8,25,0,"第3周","小班",40],["2025-03-09",2,8,25,0,"第3周","小班",41],["2025-03-10",2,8,26,1,"第4周","",42],["2025-03-10",2,8,38,0,"第4周","",43],["2025-03-11",2,10,32,1,"第4周","",44],["2025-03-11",2,8,36,0,"第4周","",45],["2025-03-12",2,8,34,0,"第4周","",46],["2025-03-12",2,10,28,1,"第4周","",47],["2025-03-12",2,5,14,1,"第4周","",48],["2025-03-12",2,8,26,1,"第4周","",49],["2025-03-13",2,4,38,0,"第4周","",50],["2025-03-14",2,0,19,0,"第4周","",51],["2025-03-14",2,8,10,1,"第4周","",52],["2025-03-15",2,8,38,0,"第4周","",53],["2025-03-15",2,1,40,2,"第4周","",54],["2025-03-15",2,8,25,0,"第4周","",55],["2025-03-16",2,8,25,0,"第4周","小班",56],["2025-03-16",2,8,25,0,"第4周","小班",57],["2025-03-16",2,8,25,0,"第4周","",58],["2025-03-16",2,8,34,0,"第4周","",59],["2025-03-17",2,8,14,1,"第5周","",60],["2025-03-17",2,8,38,0,"第5周","",61],["2025-03-17",2,8,26,1,"第5周","",62],["2025-03-18",2,8,35,1,"第5周","",63],["2025-03-19",2,8,26,1,"第5周","",64],["2025-03-19",2,5,14,1,"第5周","",65],["2025-03-19",2,1,14,2,"第5周","",66],["2025-03-19",2,8,34,0,"第5周","",67],["2025-03-20",2,8,12,0,"第5周","",68],["2025-03-20",2,8,0,1,"第5周","",69],["2025-03-20",2,4,38,0,"第5周","",70],["2025-03-20",2,8,38,2,"第5周","",71],["2025-03-21",2,1,29,2,"第5周","",72],["2025-03-21",2,8,12,0,"第5周","",73],["2025-03-21",2,1,29,2,"第5周","",74],["2025-03-22",2,1,3,2,"第5周","",75],["2025-03-22",2,8,12,0,"第5周","",76],["2025-03-22",2,8,21,2,"第5周","",77],["2025-03-23",2,1,3,2,"第5周","",78],["2025-03-23",2,8,34,0,"第5周","",79],["2025-03-23",2,8,21,2,"第5周","",80],["2025-03-23",2,8,25,0,"第5周","",81],["2025-03-24",2,8,34,0,"第6周","",82],["2025-03-24",1,8,25,0,"第6周","",83],["2025-03-24",2,8,26,1,"第6周","",84],["2025-03-25",2,8,35,1,"第6周","",85],["2025-03-25",2,4,41,1,"第6周","",86],["2025-03-25",2,10,32,1,"第6周","",87],["2025-03-26",2,8,26,1,"第6周","",88],["2025-03-26",2,5,14,1,"第6周","",89],["2025-03-26",2,1,14,2,"第6周","",90],["2025-03-26",2,8,34,0,"第6周","",91],["2025-03-27",2,8,25,0,"第6周","",92],["2025-03-27",2,8,0,1,"第6周","",93],["2025-03-27",2,8,38,0,"第6周","",94],["2025-03-27",2,8,38,2,"第6周","",95],["2025-03-28",2,1,29,2,"第6周","",96],["2025-03-28",2,1,29,2,"第6周","",97],["2025-03-30",2,8,34,0,"第6周","",98],["2025-03-30",2,10,2,1,"第6周","",99],["2025-03-31",2,8,14,1,"第7周","",100],["2025-03-31",2,8,38,0,"第7周","",101],["2025-03-31",2,8,26,1,"第7周","",102],["2025-04-01",2,8,36,0,"第7周","",103],["2025-04-01",2,10,32,1,"第7周","",104],["2025-04-02",2,8,26,1,"第7周","",105],["2025-04-02",2,5,14,1,"第7周","",106],["2025-04-02",2,8,34,0,"第7周","",107],["2025-04-02",2,1,14,2,"第7周","",108],["2025-04-03",2,4,38,0,"第7周","",109],["2025-04-03",2,8,38,2,"第7周","",110],["2025-04-05",2,8,25,0,"第7周","",111],["2025-04-05",2,3,2,0,"第7周","",112],["2025-04-05",2,8,39,0,"第7周","",113],["2025-04-05",2,8,23,1,"第7周","",114],["2025-04-06",2,8,12,2,"第7周","",115],["2025-04-06",2,8,34,0,"第7周","",116],["2025-04-06",2,8,25,0,"第7周","",117],["2025-04-07",2,8,14,1,"第8周","",118],["2025-04-07",2,8,26,1,"第8周","",119],["2025-04-07",2,4,16,1,"第8周","",120],["2025-04-08",2,8,13,1,"第8周","柳树叶",121],["2025-04-08",2,8,13,2,"第8周","柳树叶",122],["2025-04-09",2,5,14,1,"第8周","",123],["2025-04-09",2,8,34,0,"第8周","",124],["2025-04-09",2,8,26,1,"第8周","",125],["2025-04-09",2,1,14,2,"第8周","",126],["2025-04-21",2,4,16,1,"第10周","",127],["2025-04-21",2,8,14,1,"第10周","",128],["2025-04-21",2,8,36,0,"第10周","",129],["2025-04-21",2,8,26,1,"第10周","",130],["2025-04-22",2,10,32,1,"第10周","",131],["2025-04-23",2,8,26,1,"第10周","",132],["2025-04-23",2,1,14,2,"第10周","",133],["2025-04-23",2,8,34,0,"第10周","",134],["2025-04-24",2,8,25,0,"第10周","",135],["2025-04-24",2,8,0,1,"第10周","",136],["2025-04-24",2,4,13,0,"第10周","晓晔",137],["2025-04-24",2,8,13,2,"第10周","晓晔",138],["2025-04-25",2,8,10,1,"第10周","",139],["2025-04-25",2,8,10,2,"第10周","",140],["2025-04-26",2,8,25,0,"第10周","",141],["2025-04-26",2,1,13,2,"第10周","红镜",142],["2025-04-26",2,8,39,0,"第10周","",143],["2025-04-26",2,8,23,1,"第10周","",144],["2025-04-27",2,8,34,0,"第10周","",145],["2025-04-27",2,10,4,1,"第10周","",146],["2025-04-28",2,8,36,0,"第11周","",147],["2025-04-28",2,4,16,1,"第11周","",148],["2025-04-28",2,8,26,1,"第11周","",149],["2025-04-29",2,8,35,1,"第11周","",150],["2025-04-29",2,4,41,1,"第11周","",151],["2025-04-29",2,10,32,1,"第11周","",152],["2025-04-30",2,1,14,2,"第11周","",153],["2025-05-04",2,1,3,2,"第11周","",154],["2025-05-04",2,8,34,0,"第11周","",155],["2025-05-07",2,8,34,0,"第12周","",156],["2025-05-07",2,1,14,2,"第12周","",157],["2025-05-08",2,1,0,2,"第12周","",158],["2025-05-08",2,8,38,2,"第12周","",159],["2025-05-12",2,8,26,1,"第13周","",160],["2025-05-12",2,4,16,1,"第13周","",161],["2025-05-13",2,4,41,1,"第13周","",162],["2025-05-13",2,7,41,2,"第13周","",163],["2025-05-14",2,1,14,2,"第13周","",164],["2025-05-14",2,8,34,0,"第13周","",165],["2025-05-15",2,1,0,2,"第13周","",166],["2025-05-15",2,8,38,2,"第13周","",167],["2025-05-16",2,8,10,2,"第13周","",168],["2025-05-21",2,8,26,1,"第14周","",169],["2025-05-21",2,1,14,2,"第14周","",170],["2025-05-21",2,8,34,0,"第14周","",171],["2025-05-25",2,8,34,0,"第14周","",172],["2025-05-25",2,10,4,1,"第14周","",173],["2025-05-26",2,8,38,0,"第15周","",174],["2025-05-26",2,8,26,1,"第15周","",175],["2025-05-26",2,4,16,1,"第15周","",176],["2025-05-27",2,8,35,1,"第15周","",177],["2025-05-27",2,4,41,1,"第15周","",178],["2025-05-27",2,10,32,1,"第15周","",179],["2025-05-28",2,1,14,2,"第15周","",180],["2025-05-29",2,1,0,2,"第15周","",181],["2025-05-29",2,8,38,2,"第15周","",182],["2025-06-04",2,8,26,1,"第16周","",183],["2025-06-09",2,8,26,1,"第17周","",184],["2025-06-09",2,8,26,2,"第17周","",185],["2025-06-10",2,4,41,1,"第17周","",186],["2025-06-10",2,10,32,1,"第17周","",187],["2025-06-10",2,8,35,1,"第17周","",188],["2025-06-11",2,8,26,1,"第17周","",189],["2025-06-11",2,8,34,0,"第17周","",190],["2025-06-12",2,4,38,0,"第17周","",191],["2025-06-16",2,4,16,1,"第18周","",192],["2025-06-16",2,8,26,1,"第18周","",193],["2025-06-17",2,10,32,1,"第18周","",194],["2025-06-17",2,8,42,0,"第18周","",195],["2025-06-18",2,1,14,2,"第18周","",196],["2025-06-18",2,8,34,0,"第18周","",197],["2025-06-18",2,8,26,1,"第18周","",198],["2025-06-19",2,8,38,1,"第18周","",199],["2025-06-19",2,1,0,2,"第18周","",200],["2025-06-20",2,8,10,1,"第18周","",201],["2025-06-20",2,8,10,2,"第18周","",202],["2025-06-20",2,1,29,2,"第18周","",203],["2025-06-23",2,8,26,1,"第19周","",204],["2025-06-23",2,4,16,1,"第19周","",205],["2025-06-24",2,8,35,1,"第19周","",206],["2025-06-24",2,10,32,1,"第19周","",207],["2025-06-24",2,10,32,2,"第19周","",208],["2025-06-24",2,4,41,0,"第19周","",209],["2025-06-25",2,8,26,1,"第19周","",210],["2025-06-25",2,5,14,1,"第19周","",211],["2025-06-25",2,1,14,2,"第19周","",212],["2025-06-25",2,8,34,0,"第19周","",213],["2025-06-26",2,8,38,1,"第19周","",214],["2025-06-27",2,4,16,1,"第20周","",215],["2025-06-27",2,8,26,1,"第20周","",216],["2025-07-07",2,8,26,1,"第21周","",217],["2025-07-08",2,10,32,1,"第21周","",218],["2025-07-09",2,8,26,1,"第21周","",219],["2025-07-09",2,1,14,2,"第21周","",220],["2025-07-09",2,8,34,0,"第21周","",221],["2025-07-11",2,1,29,2,"第21周","",222],["2025-07-11",2,1,29,2,"第21周","",223],["2025-07-13",2,10,4,1,"第21周","",224],["2025-07-13",2,8,21,1,"第21周","",225],["2025-07-14",2,8,26,2,"第22周","",226],["2025-07-14",2,8,26,1,"第22周","",227],["2025-07-15",2,4,41,1,"第22周","",228],["2025-07-15",2,10,32,1,"第22周","",229],["2025-07-15",2,10,32,2,"第22周","",230],["2025-07-16",2,8,26,1,"第22周","",231],["2025-07-17",2,8,38,1,"第22周","",232],["2025-07-18",2,8,10,2,"第22周","",233],["2025-07-18",2,1,29,2,"第22周","",234],["2025-07-19",2,8,22,2,"第22周","",235],["2025-07-19",2,8,39,0,"第22周","",236],["2025-07-19",2,2,27,2,"第22周","",237],["2025-07-20",2,1,3,2,"第22周","",238],["2025-07-20",2,8,21,1,"第22周","",239],["2025-07-20",2,8,21,2,"第22周","",240],["2025-07-21",2,8,26,1,"第23周","",241],["2025-07-21",2,4,16,1,"第23周","",242],["2025-07-22",2,10,32,1,"第23周","",243],["2025-07-22",2,4,41,1,"第23周","",244],["2025-07-23",2,8,26,1,"第23周","",245],["2025-07-23",2,1,14,2,"第23周","",246],["2025-07-23",2,8,34,0,"第23周","",247],["2025-07-23",2,5,14,1,"第23周","",248],["2025-07-25",2,1,29,2,"第23周","",249],["2025-07-25",2,1,29,2,"第23周","",250],["2025-07-28",2,8,26,2,"第24周","",251],["2025-07-28",2,8,26,1,"第24周","",252],["2025-07-29",2,4,41,1,"第24周","",253],["2025-07-29",2,10,32,1,"第24周","",254],["2025-07-30",2,5,14,1,"第24周","",255],["2025-08-01",2,1,29,2,"第24周","",256],["2025-08-01",2,1,29,2,"第24周","",257],["2025-08-03",2,8,25,1,"第24周","",258],["2025-08-03",2,8,17,1,"第24周","",259],["2025-08-03",2,8,17,2,"第24周","",260],["2025-08-04",2,8,26,1,"第25周","",261],["2025-08-04",2,4,16,1,"第25周","",262],["2025-08-05",2,8,43,1,"第25周","",263],["2025-08-05",2,8,43,2,"第25周","",264],["2025-08-05",2,10,32,2,"第25周","",265],["2025-08-05",2,4,43,1,"第25周","",266],["2025-08-06",2,8,26,1,"第25周","",267],["2025-08-06",2,1,14,2,"第25周","",268],["2025-08-07",2,8,0,1,"第25周","",269],["2025-08-07",2,8,38,1,"第25周","",270],["2025-08-07",2,4,0,0,"第25周","",271],["2025-08-11",2,8,26,1,"第26周","",272],["2025-08-11",2,8,26,2,"第26周","",273],["2025-08-12",2,8,43,1,"第26周","",274],["2025-08-12",2,10,32,1,"第26周","",275],["2025-08-13",2,8,26,1,"第26周","",276],["2025-08-14",2,1,0,2,"第26周","",277],["2025-08-14",2,8,38,1,"第26周","",278],["2025-08-18",2,8,26,1,"第27周","",279],["2025-08-18",2,8,26,2,"第27周","",280],["2025-08-19",2,8,43,1,"第27周","",281],["2025-08-19",2,4,41,1,"第27周","",282],["2025-08-19",2,10,32,1,"第27周","",283],["2025-08-22",2,1,29,2,"第27周","",284],["2025-08-22",2,8,10,2,"第27周","",285],["2025-08-24",2,8,21,1,"第27周","",286],["2025-08-24",2,8,21,2,"第27周","",287],["2025-08-25",2,8,26,1,"第28周","",288],["2025-08-25",2,8,26,2,"第28周","",289],["2025-08-26",2,8,43,1,"第28周","",290],["2025-08-27",2,8,26,1,"第28周","",291],["2025-08-27",2,8,34,0,"第28周","",292],["2025-08-28",2,4,38,0,"第28周","",293],["2025-08-28",2,8,38,1,"第28周","",294],["2025-08-29",2,8,10,1,"第28周","",295],["2025-08-29",2,8,10,2,"第28周","",296],["2025-08-29",2,1,29,2,"第28周","",297],["2025-08-30",2,8,43,2,"第28周","",298],["2025-08-30",2,8,17,2,"第28周","",299],["2025-09-01",2,8,26,1,"第28周","",300],["2025-09-01",2,8,26,2,"第29周","",301],["2025-09-02",2,8,43,1,"第29周","",302],["2025-09-02",2,4,41,1,"第29周","",303],["2025-09-03",2,5,14,1,"第29周","",304],["2025-09-03",2,8,26,1,"第29周","",305],["2025-09-03",2,10,28,1,"第29周","",306],["2025-09-04",2,1,0,2,"第29周","",307],["2025-09-04",2,8,38,1,"第29周","",308],["2025-09-04",2,8,0,1,"第29周","",309],["2025-09-07",2,4,7,0,"第29周","小班",310],["2025-09-07",2,8,21,2,"第29周","",311],["2025-09-07",2,10,46,2,"第29周","",312],["2025-09-08",2,8,26,1,"第30周","",313],["2025-09-08",2,8,26,2,"第30周","",314],["2025-09-09",2,4,43,1,"第30周","",315],["2025-09-09",2,8,43,2,"第30周","",316],["2025-09-09",2,10,32,2,"第30周","",317],["2025-09-10",2,8,26,1,"第30周","",318],["2025-09-10",2,1,14,2,"第30周","",319],["2025-09-11",2,8,13,1,"第30周","荆荆",320],["2025-09-11",2,1,0,2,"第30周","",321],["2025-09-12",2,8,10,2,"第30周","",322],["2025-09-12",2,8,10,1,"第30周","",323],["2025-09-12",2,1,29,2,"第30周","",324],["2025-09-14",2,4,7,0,"第30周","小班",325],["2025-09-14",2,8,21,2,"第30周","",326],["2025-09-14",2,10,46,2,"第30周","",327],["2025-09-15",2,8,26,1,"第31周","",328],["2025-09-15",2,8,26,2,"第31周","",329],["2025-09-16",2,8,43,1,"第31周","",330],["2025-09-16",2,10,32,1,"第31周","",331],["2025-09-16",2,10,32,2,"第31周","",332],["2025-09-16",2,4,41,1,"第31周","",333],["2025-09-17",2,9,44,2,"第31周","",334],["2025-09-18",2,8,38,1,"第31周","",335],["2025-09-19",2,1,29,2,"第31周","",336],["2025-09-19",2,8,10,2,"第31周","",337],["2025-09-21",2,4,7,0,"第31周","小班",338],["2025-09-21",2,10,46,2,"第31周","",339],["2025-09-23",2,4,41,1,"第32周","",340],["2025-09-23",2,10,32,1,"第32周","",341],["2025-09-23",2,10,32,2,"第32周","",342],["2025-09-24",2,8,26,1,"第32周","",343],["2025-09-24",2,10,28,1,"第32周","",344],["2025-09-24",2,2,28,2,"第32周","",345],["2025-09-25",2,8,38,1,"第32周","",346],["2025-09-27",2,0,46,0,"第32周","",347],["2025-09-27",2,8,22,2,"第32周","",348],["2025-09-28",2,10,46,2,"第32周","",349],["2025-09-28",2,8,43,2,"第32周","",350],["2025-09-29",2,8,26,1,"第33周","",351],["2025-09-29",2,8,26,2,"第33周","",352],["2025-10-13",2,8,26,1,"第35周","",353],["2025-10-13",2,8,26,2,"第35周","",354],["2025-10-14",2,8,26,1,"第35周","",355],["2025-10-14",2,10,32,1,"第35周","",356],["2025-10-14",2,10,32,2,"第35周","",357],["2025-10-15",2,10,28,1,"第35周","",358],["2025-10-15",2,2,28,2,"第35周","",359],["2025-10-15",2,5,14,1,"第35周","",360],["2025-11-03",2,8,26,2,"第38周","",361],["2025-11-03",2,8,26,1,"第38周","",362],["2025-11-06",2,8,0,1,"第38周","",363],["2025-11-06",2,1,0,2,"第38周","",364],["2025-11-06",2,8,38,1,"第38周","",365],["2025-11-10",2,8,26,1,"第39周","",366],["2025-11-10",2,8,26,2,"第39周","",367],["2025-11-11",2,10,32,2,"第39周","",368],["2025-11-11",2,8,26,1,"第39周","",369],["2025-11-11",2,10,32,1,"第39周","",370],["2025-11-12",2,9,44,2,"第39周","",371],["2025-11-12",2,1,14,2,"第39周","",372],["2025-11-14",2,8,10,2,"第39周","",373],["2025-12-01",2,8,26,1,"第42周","",374],["2025-12-01",2,8,26,2,"第42周","",375],["2025-12-05",2,1,29,2,"第42周","",376],["2025-12-05",2,1,29,2,"第42周","",377],["2025-12-08",2,8,26,2,"第43周","",378],["2025-12-09",2,10,32,1,"第43周","",379],["2025-12-09",2,10,32,2,"第43周","",380],["2025-12-11",2,1,0,2,"第43周","",381],["2025-12-11",2,8,38,1,"第43周","",382],["2025-12-15",2,8,26,1,"第44周","",383],["2025-12-15",2,8,26,2,"第44周","",384],["2025-12-16",2,8,26,1,"第44周","",385],["2025-12-16",2,10,32,2,"第44周","",386],["2025-12-16",2,4,41,1,"第44周","",387],["2025-12-16",2,10,32,1,"第44周","",388],["2025-12-18",2,1,0,2,"第44周","",389],["2025-12-18",2,8,38,1,"第44周","",390],["2025-12-22",2,8,26,1,"第45周","",391],["2025-12-22",2,8,26,2,"第45周","",392],["2025-12-23",2,8,26,1,"第45周","",393],["2025-12-23",2,10,32,2,"第45周","",394],["2025-12-29",2,8,26,1,"第46周","",395],["2025-12-29",2,8,26,2,"第46周","",396],["2026-01-26",2,8,26,1,"第50周","",397],["2026-01-26",2,8,26,2,"第50周","",398],["2026-02-02",2,8,26,2,"第51周","",399],["2026-02-02",2,8,26,1,"第51周","",400],["2026-02-09",2,8,26,2,"第52周","",401],["2026-02-27",2,1,29,2,"第54周","",402],["2026-03-02",2,8,26,1,"第55周","",403],["2026-03-02",2,8,26,2,"第55周","",404],["2026-03-02",2,10,32,1,"第55周","",405],["2026-03-02",2,10,32,2,"第55周","",406],["2026-03-04",2,10,28,1,"第55周","",407],["2026-03-04",2,8,34,0,"第55周","",408],["2026-03-09",2,8,26,2,"第56周","",409],["2026-03-09",2,8,26,1,"第56周","",410],["2026-03-11",2,1,14,2,"第56周","",411],["2026-03-16",2,8,26,1,"第57周","",412],["2026-03-16",2,8,26,2,"第57周","",413],["2026-03-18",2,1,14,2,"第57周","",414],["2026-03-24",2,10,32,2,"第58周","",415],["2026-03-24",2,10,32,1,"第58周","",416],["2026-03-25",2,1,14,2,"第58周","",417],["2026-03-30",2,8,26,1,"第59周","",418],["2026-03-30",2,8,26,2,"第59周","",419],["2026-04-01",2,1,14,2,"第59周","",420],["2026-04-10",2,8,10,2,"第60周","",421],["2026-04-10",2,1,29,2,"第60周","",422],["2026-04-13",2,8,26,1,"第61周","",423],["2026-04-16",2,1,0,2,"第61周","",424],["2026-04-16",2,8,38,1,"第61周","",425],["2026-04-20",2,8,26,1,"第62周","",426],["2026-04-20",2,8,26,2,"第62周","",427],["2026-07-13",2,8,26,1,"第74周","",428],["2026-07-14",2,8,26,2,"第74周","",429],["2026-07-15",2,10,28,2,"第74周","",430],["2026-07-15",2,8,20,2,"第74周","",431],["2026-07-20",2,8,5,2,"第75周","",432],["2026-07-20",2,8,37,2,"第75周","",433],["2026-07-21",2,8,26,2,"第75周","",434],["2026-07-27",2,8,26,1,"第76周","",435],["2026-07-27",2,8,26,2,"第76周","",436],["2026-07-28",2,8,26,2,"第76周","",437],["2026-07-30",2,10,46,2,"第76周","",438],["2026-07-30",2,8,38,1,"第76周","",439],["2026-08-01",2,8,21,1,"第76周","",440],["2026-08-01",2,8,22,2,"第76周","",441],["2026-08-01",2,8,24,1,"第76周","",442],["2026-08-03",2,8,26,2,"第77周","",443],["2026-08-03",2,8,26,1,"第77周","",444],["2026-08-04",2,8,26,2,"第77周","",445],["2026-08-05",2,1,14,2,"第77周","",446],["2026-08-05",2,8,20,2,"第77周","",447],["2026-08-11",2,8,26,2,"第78周","",448],["2026-08-12",2,1,14,2,"第78周","",449],["2026-08-12",2,8,20,2,"第78周","",450],["2026-08-13",2,10,46,1,"第78周","",451],["2026-08-13",2,8,38,1,"第78周","",452],["2026-08-15",0,9,31,3,"第78周","",453],["2026-08-15",0,9,31,3,"第78周","",454],["2026-08-15",4,7,11,3,"第78周","",455],["2026-08-15",4,7,11,3,"第78周","",456],["2026-08-17",0,7,30,3,"第79周","",457],["2026-08-17",0,7,30,3,"第79周","",458],["2026-08-19",2,8,20,0,"第79周","",459],["2026-08-19",2,8,20,2,"第79周","",460],["2026-08-20",2,10,46,1,"第79周","",461],["2026-08-20",2,8,38,1,"第79周","",462],["2026-08-22",2,8,24,1,"第79周","",463],["2026-08-22",2,8,18,1,"第79周","",464],["2026-08-23",3,0,44,0,"第79周","",465],["2026-08-23",2,8,1,1,"第79周","",466],["2026-08-23",2,8,1,2,"第79周","",467],["2026-08-24",2,8,26,2,"第80周","",468],["2026-08-24",2,8,26,1,"第80周","",469],["2026-08-26",2,8,20,2,"第80周","",470],["2026-08-27",2,8,38,1,"第80周","",471],["2026-08-28",2,1,15,2,"第80周","",472],["2026-08-28",2,1,29,2,"第80周","",473],["2026-08-29",2,1,24,1,"第80周","",474],["2026-08-30",2,8,1,2,"第80周","",475],["2026-08-31",2,8,26,1,"第81周","",476],["2026-08-31",2,8,26,2,"第81周","",477],["2026-09-01",2,8,26,2,"第81周","",478],["2026-09-02",4,4,16,1,"第81周","",479],["2026-09-02",2,8,20,2,"第81周","",480],["2026-09-03",2,8,0,1,"第81周","",481],["2026-09-03",2,8,38,1,"第81周","",482],["2026-09-04",4,4,16,1,"第81周","",483],["2026-09-04",4,8,16,2,"第81周","",484],["2026-09-05",2,5,9,1,"第81周","",485],["2026-09-05",2,2,9,2,"第81周","",486],["2026-09-05",4,9,8,3,"第81周","",487],["2026-09-05",4,9,8,3,"第81周","",488],["2026-09-07",2,8,26,1,"第82周","",489],["2026-09-07",2,8,26,2,"第82周","",490],["2026-09-07",2,8,26,2,"第82周","",491],["2026-09-12",2,1,9,2,"第82周","",492],["2026-09-14",2,8,26,1,"第83周","",493],["2026-09-14",2,8,26,2,"第83周","",494]]};
+var MAXSTAR=4, LKEY="dance_log_v3";
+var DB=null, LOCAL=false, years={}, records=[], ready=false;
+
+function $(s){return document.querySelector(s);}
+function el(t,c,x){var n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;}
+function pad(n){return n<10?"0"+n:""+n;}
+function today(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function stars(n){return "★".repeat(n||0)+"☆".repeat(Math.max(0,MAXSTAR-(n||0)));}
+function uid(){return "r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(function(){t.classList.remove("on");},1800);}
+function yr(d){return (d||"").slice(0,4)||"other";}
+var ANCHOR=Date.UTC(2025,1,17); /* 第1周起始：2025-02-17 周一 */
+function weekOf(d){
+  var t=Date.parse(d+"T00:00:00Z"); if(isNaN(t)) return "";
+  var n=Math.floor((t-ANCHOR)/6048e5)+1;
+  return n>0? "第"+n+"周" : "";
+}
+
+/* ---- 存储：按年分块，一年一个文档 ---- */
+function flatten(){
+  var out=[];
+  Object.keys(years).forEach(function(y){
+    (years[y]||[]).forEach(function(r){ if(!r.deleted) out.push(r); });
+  });
+  out.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:((a.seq||0)-(b.seq||0)); });
+  out.forEach(function(r,i){ r.no=i+1; });
+  records=out;
+}
+function localSave(){ try{ localStorage.setItem(LKEY,JSON.stringify(years)); }catch(e){} }
+function seedYears(){
+  var y={};
+  SEED.R.forEach(function(a,i){
+    var r={id:"s"+i,date:a[0],studio:SEED.S[a[1]],style:SEED.Y[a[2]],
+      teacher:SEED.T[a[3]],level:a[4],week:a[5],note:a[6],seq:a[7]};
+    var k=yr(r.date); if(!y[k]) y[k]=[]; y[k].push(r);
+  });
+  return y;
+}
+function total(y){ var n=0; for(var k in y) n+=(y[k]||[]).length; return n; }
+
+function initStore(){
+  /* 1. 立刻渲染：本地缓存 → 没有就用内置数据 */
+  var c=null;
+  try{ c=localStorage.getItem(LKEY); }catch(e){}
+  years = c? JSON.parse(c) : seedYears();
+  ready=true; flatten(); cache(); renderAll();
+  /* 2. 后台连云端，成功就同步，失败完全不影响使用 */
+  syncCloud();
+}
+function syncCloud(){
+  if(!(window.claude&&claude.use)) return;
+  var done=false;
+  setTimeout(function(){ if(!done) LOCAL=true; },4000);
+  claude.use("db").then(function(db){
+    done=true;
+    if(!db){ LOCAL=true; renderAll(); return; }
+    DB=db;
+    try{
+      DB.collection("log").onSnapshot(function(snap){
+        var y={}; snap.forEach(function(doc){ var v=doc.data()||{}; y[doc.id]=v.items||[]; });
+        if(total(y)>0){ years=y; flatten(); cache(); renderAll(); }
+        else { Object.keys(years).forEach(function(k){ writeYear(k); }); }
+      },function(){ DB=null; LOCAL=true; });
+    }catch(e){ DB=null; LOCAL=true; }
+  }).catch(function(){ done=true; LOCAL=true; });
+}
+function cache(){ try{ localStorage.setItem(LKEY,JSON.stringify(years)); }catch(e){} }
+function writeYear(y){
+  cache(); flatten(); renderAll();
+  if(DB){
+    try{ DB.collection("log").doc(y).set({items:years[y]||[]}).catch(function(){}); }catch(e){}
+  }
+  return true;
+}
+async function putRec(rec){
+  var oldY=null;
+  Object.keys(years).forEach(function(y){
+    if((years[y]||[]).some(function(r){return r.id===rec.id;})) oldY=y;
+  });
+  var ny=yr(rec.date);
+  if(oldY&&oldY!==ny){ years[oldY]=years[oldY].filter(function(r){return r.id!==rec.id;}); await writeYear(oldY); }
+  if(!years[ny]) years[ny]=[];
+  var i=years[ny].findIndex(function(r){return r.id===rec.id;});
+  if(i>=0) years[ny][i]=rec; else years[ny].push(rec);
+  years[ny].sort(function(a,b){return a.date<b.date?-1:1;});
+  return writeYear(ny);
+}
+function dropRec(id){
+  var y=null;
+  Object.keys(years).forEach(function(k){ if((years[k]||[]).some(function(r){return r.id===id;})) y=k; });
+  if(!y) return;
+  years[y].forEach(function(r){ if(r.id===id){ r.deleted=1; r.updated_at=Date.now(); } });
+  writeYear(y); push([{id:id,deleted:true,updated_at:Date.now()}]);
+}
+
+/* ---- 表单 ---- */
+var editing=null, lvl=0;
+function buildStars(){
+  var b=$("#i-stars"); b.innerHTML="";
+  for(var i=1;i<=MAXSTAR;i++){(function(n){
+    var x=el("button",null,"★"); x.type="button";
+    x.onclick=function(){ lvl=(lvl===n?0:n); paint(); };
+    b.appendChild(x);
+  })(i);}
+  paint();
+}
+function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i].className=(i<lvl?"on":""); }
+function resetForm(){
+  editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
+  pick.studio=lastVal("studio"); pick.style=""; pick.teacher="";
+  renderFilters(); $("#i-note").value="";
+  $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
+}
+function lastVal(f){ return records.length? (records[records.length-1][f]||"") : ""; }
+function loadForm(r){
+  editing=r.id; lvl=r.level||0;
+  $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
+  pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||"";
+  renderFilters(); $("#i-note").value=r.note||"";
+  $("#cancel").hidden=false; $("#save").textContent="保存修改";
+  paint(); show("add");
+}
+$("#save").onclick=async function(){
+  var d=$("#i-date").value; if(!d){ toast("请选日期"); return; }
+  var old=records.filter(function(r){return r.id===editing;})[0];
+  var rec={id:editing||uid(),date:d,week:$("#i-week").value.trim()||weekOf(d),
+    studio:pick.studio,style:pick.style,
+    teacher:pick.teacher,level:lvl,note:$("#i-note").value.trim(),
+    seq:(old&&old.seq)||Date.now()%1e7};
+  rec.updated_at=Date.now();
+  if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
+};
+$("#cancel").onclick=function(){ resetForm(); show("list"); };
+$("#i-date").onchange=function(){ $("#i-week").value=weekOf(this.value); };
+
+/* ---- 记录列表 ---- */
+var desc=true, page=60;
+function filtered(){
+  var fs=$("#f-studio").value,fy=$("#f-style").value,ft=$("#f-teacher").value;
+  var kw=$("#f-kw").value.trim().toLowerCase();
+  var rs=records.filter(function(r){
+    if(fs&&r.studio!==fs) return false;
+    if(fy&&r.style!==fy) return false;
+    if(ft&&r.teacher!==ft) return false;
+    if(kw){ var s=((r.teacher||"")+" "+(r.note||"")+" "+(r.style||"")).toLowerCase(); if(s.indexOf(kw)<0) return false; }
+    return true;
+  });
+  return desc? rs.slice().reverse() : rs.slice();
+}
+function renderList(){
+  var rs=filtered(), box=$("#listbox"); box.innerHTML="";
+  if(!ready){ box.appendChild(el("div","empty","加载中…")); return; }
+  if(!rs.length){ box.appendChild(el("div","empty","没有符合条件的记录")); return; }
+  var shown=rs.slice(0,page), lastM="";
+  shown.forEach(function(r){
+    var m=r.date.slice(0,7);
+    if(m!==lastM){ lastM=m; box.appendChild(el("div","mon",m.replace("-"," 年 ")+" 月")); }
+    var row=el("div","rec");
+    var dd=el("div","d");
+    dd.appendChild(el("b",null,String(parseInt(r.date.slice(8,10),10))));
+    dd.appendChild(el("span",null,"周"+"日一二三四五六"[new Date(r.date+"T00:00:00").getDay()]));
+    var mm=el("div","m");
+    var t=el("div","t");
+    t.appendChild(el("span","pill no","#"+r.no));
+    if(r.style) t.appendChild(el("span","pill",r.style));
+    t.appendChild(document.createTextNode(r.teacher||"—"));
+    mm.appendChild(t);
+    var meta=[]; if(r.week) meta.push(r.week); if(r.studio) meta.push(r.studio);
+    mm.appendChild(el("div","meta",meta.join(" · ")));
+    if(r.level) mm.appendChild(el("div","st",stars(r.level)));
+    if(r.note) mm.appendChild(el("div","meta","📝 "+r.note));
+    var act=el("div"); act.style.cssText="flex:0 0 auto;display:flex;flex-direction:column;gap:6px";
+    var e=el("button","btn ghost sm","改"); e.onclick=function(){loadForm(r);};
+    var x=el("button","btn ghost sm","删");
+    x.onclick=function(){ confirmDlg("<b>删除这条记录？</b><div class='note' style='margin-top:6px'>"+r.date+" "+(r.teacher||"")+"</div>",function(){ dropRec(r.id); toast("已删除"); }); };
+    act.appendChild(e); act.appendChild(x);
+    row.appendChild(dd); row.appendChild(mm); row.appendChild(act);
+    box.appendChild(row);
+  });
+  if(rs.length>shown.length){
+    var w=el("div","more");
+    var b=el("button","btn ghost sm","显示更多（还有 "+(rs.length-shown.length)+" 条）");
+    b.onclick=function(){ page+=120; renderList(); };
+    w.appendChild(b); box.appendChild(w);
+  }
+}
+function confirmDlg(h,cb){
+  $("#dlg-body").innerHTML=h; var d=$("#dlg"); d.showModal();
+  $("#dlg-yes").onclick=function(){d.close();cb();};
+  $("#dlg-no").onclick=function(){d.close();};
+}
+function uniq(f){
+  var m={}; records.forEach(function(r){ if(r[f]) m[r[f]]=(m[r[f]]||0)+1; });
+  return Object.keys(m).sort(function(a,b){ return m[b]-m[a]; });
+}
+var OKEY="dance_order_v1", ORDER={};
+try{ ORDER=JSON.parse(localStorage.getItem(OKEY)||"{}"); }catch(e){ ORDER={}; }
+function saveOrder(){ try{ localStorage.setItem(OKEY,JSON.stringify(ORDER)); }catch(e){} }
+function items(f){
+  var freq=uniq(f), o=(ORDER[f]||[]).slice();
+  var seen={}, out=[];
+  o.forEach(function(v){ if(!seen[v]){ seen[v]=1; out.push(v); } });
+  freq.forEach(function(v){ if(!seen[v]){ seen[v]=1; out.push(v); } });
+  return out;
+}
+var pick={studio:"",style:"",teacher:""}, expand={};
+function chips(f){
+  var box=$("#c-"+f); if(!box) return;
+  box.innerHTML="";
+  var list=items(f), lim=expand[f]?list.length:(f==="teacher"?10:8);
+  if(pick[f]&&list.indexOf(pick[f])>=lim) lim=list.indexOf(pick[f])+1;
+  list.slice(0,lim).forEach(function(v){
+    var b=el("button","chip"+(pick[f]===v?" on":""),v); b.type="button";
+    b.onclick=function(){ pick[f]=(pick[f]===v?"":v); chips(f); };
+    box.appendChild(b);
+  });
+  if(list.length>lim){
+    var m=el("button","chip add","更多 "+(list.length-lim)); m.type="button";
+    m.onclick=function(){ expand[f]=1; chips(f); }; box.appendChild(m);
+  }
+  var a=el("button","chip add","＋ 新增"); a.type="button";
+  a.onclick=function(){
+    var v=(window.prompt("新增"+({studio:"舞房",style:"舞种",teacher:"老师"}[f]))||"").trim();
+    if(!v) return;
+    if(!ORDER[f]) ORDER[f]=items(f);
+    if(ORDER[f].indexOf(v)<0) ORDER[f].unshift(v);
+    saveOrder(); pick[f]=v; expand[f]=1; chips(f);
+  };
+  box.appendChild(a);
+}
+function renderFilters(){
+  [["#f-studio","studio","全部舞房"],["#f-style","style","全部舞种"],["#f-teacher","teacher","全部老师"]].forEach(function(c){
+    var s=$(c[0]),k=s.value; s.innerHTML=""; s.appendChild(new Option(c[2],""));
+    items(c[1]).forEach(function(v){ s.appendChild(new Option(v,v)); });
+    s.value=k;
+  });
+  chips("studio"); chips("style"); chips("teacher");
+}
+/* 设置页：调整顺序 */
+var odim="teacher";
+function renderOrder(){
+  var box=$("#ord-list"); box.innerHTML="";
+  var list=items(odim);
+  var cnt={}; records.forEach(function(r){ if(r[odim]) cnt[r[odim]]=(cnt[r[odim]]||0)+1; });
+  list.forEach(function(v,i){
+    var row=el("div","orow");
+    var s=el("span"); s.appendChild(document.createTextNode(v));
+    s.appendChild(el("small",null,"  "+(cnt[v]||0)+" 节"));
+    var up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
+    function move(from,to){
+      var l=items(odim);
+      if(to<0||to>=l.length) return;
+      var x=l.splice(from,1)[0]; l.splice(to,0,x);
+      ORDER[odim]=l; saveOrder(); renderOrder(); chips(odim); renderFilters();
+    }
+    up.onclick=function(){ move(i,i-1); };
+    dn.onclick=function(){ move(i,i+1); };
+    top.onclick=function(){ move(i,0); };
+    row.appendChild(s); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    box.appendChild(row);
+  });
+  if(!list.length) box.appendChild(el("div","empty","暂无选项"));
+}
+Array.prototype.forEach.call($("#ord-dim").children,function(b){
+  b.onclick=function(){ Array.prototype.forEach.call($("#ord-dim").children,function(x){x.className="";});
+    b.className="on"; odim=b.dataset.d; renderOrder(); };
+});
+["#f-studio","#f-style","#f-teacher"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
+$("#f-kw").oninput=function(){ page=60; renderList(); };
+$("#f-sort").onclick=function(){ desc=!desc; this.textContent=desc?"最新在前 ↓":"最早在前 ↑"; page=60; renderList(); };
+
+/* ---- 统计 ---- */
+var range=0, dim="teacher", sk="count", sd=-1, gran="month";
+function inR(r){
+  if(!range) return true;
+  var d=new Date(r.date+"T00:00:00"); if(isNaN(d)) return false;
+  return (Date.now()-d.getTime())/86400000<=range;
+}
+function renderStats(){
+  var rs=records.filter(inR);
+  var lv=rs.filter(function(r){return r.level>0;});
+  var avg=lv.length? lv.reduce(function(a,r){return a+r.level;},0)/lv.length:0;
+  var weeks=1;
+  if(rs.length){
+    var t0=new Date(rs[0].date+"T00:00:00"), t1=new Date(rs[rs.length-1].date+"T00:00:00");
+    weeks=Math.max(1,(t1-t0)/6048e5);
+  }
+  var k=$("#kpis"); k.innerHTML="";
+  [[rs.length,"课数"],[uniqIn(rs,"teacher"),"老师"],[avg?avg.toFixed(2):"–","平均难度"],[(rs.length/weeks).toFixed(1),"节/周"]]
+  .forEach(function(p){ var c=el("div","kpi"); c.appendChild(el("b",null,p[0])); c.appendChild(el("span",null,p[1])); k.appendChild(c); });
+
+  var g={};
+  rs.forEach(function(r){
+    var key=r[dim]||"（空）";
+    if(!g[key]) g[key]={name:key,count:0,s:0,n:0,last:""};
+    g[key].count++; if(r.level>0){g[key].s+=r.level;g[key].n++;}
+    if(r.date>g[key].last) g[key].last=r.date;
+  });
+  var rows=Object.keys(g).map(function(x){var o=g[x];o.avg=o.n?o.s/o.n:0;return o;});
+  rows.sort(function(a,b){
+    var x = sk==="count"?a.count-b.count : sk==="avg"?a.avg-b.avg : (a.last<b.last?-1:a.last>b.last?1:0);
+    return x===0? a.count-b.count : x*sd;
+  });
+  var max=Math.max.apply(null,[1].concat(rows.map(function(r){return r.count;})));
+  var t=$("#agg"); t.innerHTML="";
+  var hr=t.insertRow();
+  [["名称",null],["课数","count"],["平均难度","avg"],["最近","last"]].forEach(function(h){
+    var th=document.createElement("th"); th.textContent=h[0];
+    if(h[1]){
+      if(sk===h[1]){ th.className="act"; th.textContent=h[0]+(sd<0?" ↓":" ↑"); }
+      th.onclick=function(){ if(sk===h[1]) sd=-sd; else {sk=h[1];sd=-1;} renderStats(); };
+    }
+    hr.appendChild(th);
+  });
+  if(!rows.length){ var r0=t.insertRow(),c0=r0.insertCell(); c0.colSpan=4;c0.className="empty";c0.textContent="这段时间没有记录"; }
+  rows.forEach(function(o){
+    var tr=t.insertRow(), c1=tr.insertCell();
+    c1.appendChild(document.createTextNode(o.name));
+    var b=el("div","bar"); b.style.width=Math.round(o.count/max*100)+"%"; c1.appendChild(b);
+    tr.insertCell().textContent=o.count;
+    tr.insertCell().textContent=o.n?o.avg.toFixed(2):"–";
+    tr.insertCell().textContent=o.last.slice(5);
+  });
+
+  var mg={};
+  rs.forEach(function(r){
+    var m = gran==="week" ? (r.week||weekOf(r.date)||"—") : r.date.slice(0,7);
+    mg[m]=(mg[m]||0)+1;
+  });
+  var ms=Object.keys(mg).sort(function(a,b){
+    if(gran==="week"){ return (parseInt(b.replace(/\D/g,""),10)||0)-(parseInt(a.replace(/\D/g,""),10)||0); }
+    return a<b?1:-1;
+  }).slice(0,gran==="week"?26:18);
+  var mt=$("#months"); mt.innerHTML="";
+  var mh=mt.insertRow(); [gran==="week"?"周次":"月份","课数",""].forEach(function(h){var th=document.createElement("th");th.textContent=h;mh.appendChild(th);});
+  var mx=Math.max.apply(null,[1].concat(ms.map(function(m){return mg[m];})));
+  ms.forEach(function(m){
+    var tr=mt.insertRow();
+    tr.insertCell().textContent=m;
+    tr.insertCell().textContent=mg[m];
+    var c=tr.insertCell(); c.style.width="46%";
+    var b=el("div","bar"); b.style.width=Math.round(mg[m]/mx*100)+"%"; c.appendChild(b);
+  });
+}
+function uniqIn(rs,f){ var m={}; rs.forEach(function(r){ if(r[f]) m[r[f]]=1; }); return Object.keys(m).length; }
+Array.prototype.forEach.call($("#range").children,function(b){
+  b.onclick=function(){ Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
+    b.className="on"; range=parseInt(b.dataset.r,10); renderStats(); };
+});
+Array.prototype.forEach.call($("#dim").children,function(b){
+  b.onclick=function(){ Array.prototype.forEach.call($("#dim").children,function(x){x.className="";});
+    b.className="on"; dim=b.dataset.d; renderStats(); };
+});
+Array.prototype.forEach.call($("#gran").children,function(b){
+  b.onclick=function(){ Array.prototype.forEach.call($("#gran").children,function(x){x.className="";});
+    b.className="on"; gran=b.dataset.g; renderStats(); };
+});
+
+/* ---- CSV ---- */
+function esc(v){ v=(v==null?"":""+v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+$("#exp").onclick=function(){
+  var L=["节数,日期,周数,舞房,舞种,老师,难度,备注"];
+  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,r.level,r.note].map(esc).join(",")); });
+  var b=new Blob(["\ufeff"+L.join("\n")],{type:"text/csv;charset=utf-8"});
+  var u=URL.createObjectURL(b), a=document.createElement("a");
+  a.href=u; a.download="舞蹈记录.csv"; a.click();
+  setTimeout(function(){URL.revokeObjectURL(u);},1500);
+};
+function parseCSV(x){
+  var rows=[],row=[],cur="",q=false;
+  x=x.replace(/^\ufeff/,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  for(var i=0;i<x.length;i++){ var c=x[i];
+    if(q){ if(c==='"'){ if(x[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(cur); cur=""; }
+    else if(c==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; }
+    else cur+=c; }
+  if(cur!==""||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){return r.some(function(v){return (v||"").trim()!=="";});});
+}
+function normDate(s){
+  s=(s||"").trim(); if(!s) return "";
+  var m=s.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m? m[1]+"-"+pad(+m[2])+"-"+pad(+m[3]) : "";
+}
+$("#imp").onclick=function(){ $("#file").click(); };
+$("#file").onchange=function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var fr=new FileReader();
+  fr.onload=async function(){
+    var rows=parseCSV(fr.result);
+    if(rows.length<2){ toast("文件为空"); return; }
+    var head=rows[0].map(function(h){return (h||"").trim();});
+    function col(){ var ns=[].slice.call(arguments);
+      for(var i=0;i<head.length;i++) for(var j=0;j<ns.length;j++) if(head[i].indexOf(ns[j])>=0) return i;
+      return -1; }
+    var ci={d:col("日期","上课时间","时间","date"),st:col("舞房","舞蹈室","场馆","studio"),
+      sy:col("舞种","风格","style"),tc:col("老师","教师","teacher"),
+      lv:col("难度","星级","评分","level"),nt:col("备注","note"),wk:col("周数","周次","week")};
+    if(ci.d<0){ toast("没找到日期列"); return; }
+    var n=0, touched={};
+    for(var i=1;i<rows.length;i++){
+      var r=rows[i], d=normDate(r[ci.d]); if(!d) continue;
+      var v=ci.lv>=0? parseFloat(r[ci.lv]):0; if(isNaN(v)) v=0;
+      var rec={id:uid(),date:d,week:(ci.wk>=0?(r[ci.wk]||"").trim():"")||weekOf(d),
+        studio:ci.st>=0?(r[ci.st]||"").trim():"",style:ci.sy>=0?(r[ci.sy]||"").trim():"",
+        teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",level:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
+        note:ci.nt>=0?(r[ci.nt]||"").trim():"",seq:i};
+      var y=yr(d); if(!years[y]) years[y]=[];
+      years[y].push(rec); touched[y]=1; n++;
+    }
+    for(var y in touched){ years[y].sort(function(a,b){return a.date<b.date?-1:1;}); await writeYear(y); }
+    flatten(); renderAll(); toast("已导入 "+n+" 条"); e.target.value="";
+  };
+  fr.readAsText(f,"utf-8");
+};
+
+/* ========== 云端同步（Supabase） ========== */
+var SBKEY="dance_sb_cfg", SB=null;
+try{ SB=JSON.parse(localStorage.getItem(SBKEY)||"null"); }catch(e){ SB=null; }
+function sbOn(){ return !!(SB&&SB.url&&SB.key); }
+function sbUrl(p){ return SB.url.replace(/\/+$/,"")+"/rest/v1/"+p; }
+function sbHead(extra){
+  var hd={apikey:SB.key,"Content-Type":"application/json"};
+  /* 新版 sb_publishable_ 密钥只走 apikey 头；旧版 anon JWT 需要 Bearer */
+  if(SB.key.indexOf("sb_")!==0) hd.Authorization="Bearer "+SB.key;
+  for(var k in (extra||{})) hd[k]=extra[k];
+  return hd;
+}
+function setSync(msg){ var e=$("#sync-msg"); if(e) e.textContent=msg; }
+
+function push(list){
+  if(!sbOn()||!list||!list.length) return Promise.resolve();
+  var body=list.map(function(r){
+    return {id:r.id,date:r.date||null,week:r.week||"",studio:r.studio||"",style:r.style||"",
+      teacher:r.teacher||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+      deleted:!!r.deleted,updated_at:r.updated_at||Date.now()};
+  });
+  return fetch(sbUrl("classes"),{method:"POST",
+    headers:sbHead({Prefer:"resolution=merge-duplicates,return=minimal"}),
+    body:JSON.stringify(body)})
+    .then(function(res){ if(!res.ok) return res.text().then(function(t){throw new Error(t);}); })
+    .catch(function(e){ setSync("同步失败："+e.message); });
+}
+function pull(){
+  if(!sbOn()) return Promise.reject(new Error("未配置"));
+  return fetch(sbUrl("classes?select=*&limit=20000"),{headers:sbHead()})
+    .then(function(res){ if(!res.ok) return res.text().then(function(t){throw new Error(t);}); return res.json(); });
+}
+function localMap(){
+  var m={};
+  Object.keys(years).forEach(function(y){ (years[y]||[]).forEach(function(r){ m[r.id]=r; }); });
+  return m;
+}
+function syncNow(){
+  if(!sbOn()){ setSync("尚未配置云端"); return; }
+  setSync("同步中…");
+  pull().then(function(rows){
+    var lm=localMap(), merged={}, toPush=[];
+    rows.forEach(function(r){ merged[r.id]=r; });
+    Object.keys(lm).forEach(function(id){
+      var l=lm[id], c=merged[id];
+      if(!c || (l.updated_at||0)>(c.updated_at||0)){ merged[id]=l; toPush.push(l); }
+    });
+    var y={};
+    Object.keys(merged).forEach(function(id){
+      var r=merged[id]; if(!r.date) return;
+      var k=yr(r.date); if(!y[k]) y[k]=[];
+      y[k].push({id:r.id,date:r.date,week:r.week||"",studio:r.studio||"",style:r.style||"",
+        teacher:r.teacher||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+        deleted:!!r.deleted,updated_at:r.updated_at||0});
+    });
+    Object.keys(y).forEach(function(k){ y[k].sort(function(a,b){return a.date<b.date?-1:1;}); });
+    years=y; flatten(); cache(); renderAll();
+    if(toPush.length) return push(toPush).then(function(){ setSync("已同步 · 上传 "+toPush.length+" 条 · "+new Date().toLocaleTimeString()); });
+    setSync("已同步 · "+new Date().toLocaleTimeString());
+  }).catch(function(e){ setSync("同步失败："+e.message); });
+}
+function saveCfg(){
+  var u=$("#sb-url").value.trim(), k=$("#sb-key").value.trim();
+  if(!u||!k){ setSync("请填完整"); return; }
+  if(u.indexOf("http")!==0){ u="https://"+u; }
+  SB={url:u,key:k};
+  try{ localStorage.setItem(SBKEY,JSON.stringify(SB)); }catch(e){}
+  syncNow();
+}
+function clearCfg(){
+  SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
+  $("#sb-url").value=""; $("#sb-key").value=""; setSync("已断开云端，改为仅本地存储");
+}
+Array.prototype.forEach.call($("#theme").children,function(b){
+  b.onclick=function(){ Array.prototype.forEach.call($("#theme").children,function(x){x.className="";});
+    b.className="on"; var t=b.dataset.t;
+    if(t==="auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme",t);
+    try{ localStorage.setItem("dance_theme",t); }catch(e){} };
+});
+(function(){ var t=null; try{t=localStorage.getItem("dance_theme");}catch(e){}
+  if(t&&t!=="auto"){ document.documentElement.setAttribute("data-theme",t);
+    Array.prototype.forEach.call($("#theme").children,function(x){x.className=x.dataset.t===t?"on":"";}); } })();
+
+var views={list:"#v-list",add:"#v-add",stats:"#v-stats",set:"#v-set"};
+function show(v){
+  Object.keys(views).forEach(function(k){ $(views[k]).classList.toggle("hidden",k!==v); });
+  Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){ b.className=b.dataset.v===v?"on":""; });
+  if(v==="stats") renderStats();
+  if(v==="set") renderOrder();
+  window.scrollTo(0,0);
+}
+Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){
+  b.onclick=function(){ if(b.dataset.v==="add"&&!editing) resetForm(); show(b.dataset.v); };
+});
+
+function renderAll(){
+  renderFilters(); renderList();
+  if(!$("#v-stats").classList.contains("hidden")) renderStats();
+  var n=records.length;
+  if(!n){ $("#sub").textContent="还没有记录"+""; return; }
+  $("#sub").textContent="共 "+n+" 节课 · "+records[0].date+" 至 "+records[n-1].date+"";
+}
+$("#sb-save").onclick=saveCfg;
+$("#sb-sync").onclick=syncNow;
+$("#sb-clear").onclick=clearCfg;
+if(sbOn()){ $("#sb-url").value=SB.url; $("#sb-key").value=SB.key; }
+
+buildStars(); resetForm(); renderAll(); initStore();
+if(sbOn()) setTimeout(syncNow,300);
+})();
+</script>
+</body>
+</html>
