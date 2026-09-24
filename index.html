@@ -104,10 +104,18 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   background:var(--bg);color:var(--text);line-height:1.2}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:650}
 .chip.add{color:var(--muted);border-style:dashed}
-.orow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
-.orow span{flex:1;min-width:0;font-size:14px}
+.orow{display:flex;align-items:center;gap:5px;padding:7px 0;border-bottom:1px solid var(--line)}
+.orow span{flex:1;min-width:0;font-size:14px;word-break:break-word}
 .orow small{color:var(--muted);font-size:12px}
-.obtn{width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
+.obtn{width:30px;height:32px;flex:0 0 auto;font-size:13px;border:1px solid var(--line);border-radius:8px;font-size:15px;color:var(--muted)}
+.pass{padding:10px 0;border-bottom:1px solid var(--line)}
+.pass:last-child{border-bottom:none}
+.pass b{font-size:15px}
+.pass .line{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px;gap:8px}
+.pass .line span:last-child{color:var(--text);font-weight:600;text-align:right}
+.pass .warn{color:var(--accent);font-weight:650}
+.meter{height:6px;background:var(--line);border-radius:3px;margin-top:7px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:3px}
 .hidden{display:none!important}
 </style>
 </head>
@@ -142,6 +150,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="field"><label>舞房</label><div class="chips" id="c-studio"></div></div>
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
+    <div class="field"><label>计费方式</label><div class="chips" id="c-bill"></div></div>
     <div class="field"><label>难度</label><div class="stars" id="i-stars"></div></div>
     <div class="field"><label>备注</label><textarea id="i-note" placeholder="小班 / 曲目 / 感受…"></textarea></div>
     <button class="btn" id="save">保存记录</button>
@@ -157,6 +166,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button data-r="0" class="on">全部</button>
   </div>
   <div class="kpis" id="kpis"></div>
+  <div class="card" id="pass-card">
+    <div class="hd"><h2>畅跳卡</h2></div>
+    <div id="pass-body"></div>
+  </div>
   <div class="card">
     <div class="seg" id="dim" style="margin-bottom:12px">
       <button data-d="teacher" class="on">老师</button>
@@ -196,6 +209,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="btn ghost" id="sb-clear" style="margin-top:8px">断开云端</button>
     <button class="btn ghost" id="sb-shift" style="margin-top:8px">原始数据难度整体 +1（限一次）</button>
     <div class="note" style="margin-top:10px">密钥只存在本机浏览器，不会出现在网站文件里。</div>
+  </div>
+  <div class="card">
+    <div class="hd"><h2>畅跳卡管理</h2></div>
+    <div id="card-list"></div>
+    <button class="btn ghost" id="card-add" style="margin-top:10px">＋ 添加一张卡</button>
+    <div class="note" style="margin-top:8px">按卡的起止日期统计期内畅跳节数，算出每节均摊价和回本进度。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>选项排序</h2></div>
@@ -351,7 +370,7 @@ function buildStars(){
 function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i].className=(i<lvl?"on":""); }
 function resetForm(){
   editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
-  pick.studio=lastVal("studio"); pick.style=""; pick.teacher="";
+  pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="畅跳";
   renderFilters(); $("#i-note").value="";
   $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
 }
@@ -359,7 +378,7 @@ function lastVal(f){ return records.length? (records[records.length-1][f]||"") :
 function loadForm(r){
   editing=r.id; lvl=r.level||0;
   $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
-  pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||"";
+  pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"畅跳";
   renderFilters(); $("#i-note").value=r.note||"";
   $("#cancel").hidden=false; $("#save").textContent="保存修改";
   paint(); show("add");
@@ -369,7 +388,7 @@ $("#save").onclick=async function(){
   var old=records.filter(function(r){return r.id===editing;})[0];
   var rec={id:editing||uid(),date:d,week:$("#i-week").value.trim()||weekOf(d),
     studio:pick.studio,style:pick.style,
-    teacher:pick.teacher,level:lvl,note:$("#i-note").value.trim(),
+    teacher:pick.teacher,bill:pick.bill,level:lvl,note:$("#i-note").value.trim(),
     seq:(old&&old.seq)||Date.now()%1e7};
   rec.updated_at=Date.now();
   if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
@@ -407,6 +426,7 @@ function renderList(){
     var t=el("div","t");
     t.appendChild(el("span","pill no","#"+r.no));
     if(r.style) t.appendChild(el("span","pill",r.style));
+    if(r.bill&&r.bill!=="畅跳") t.appendChild(el("span","pill",r.bill));
     t.appendChild(document.createTextNode(r.teacher||"—"));
     mm.appendChild(t);
     var meta=[]; if(r.week) meta.push(r.week); if(r.studio) meta.push(r.studio);
@@ -447,7 +467,16 @@ function items(f){
   freq.forEach(function(v){ if(!seen[v]){ seen[v]=1; out.push(v); } });
   return out;
 }
-var pick={studio:"",style:"",teacher:""}, expand={};
+var BILLS=["畅跳","非畅跳","大师","其他"];
+var pick={studio:"",style:"",teacher:"",bill:"畅跳"}, expand={};
+function billChips(){
+  var box=$("#c-bill"); if(!box) return; box.innerHTML="";
+  BILLS.forEach(function(v){
+    var b=el("button","chip"+(pick.bill===v?" on":""),v); b.type="button";
+    b.onclick=function(){ pick.bill=v; billChips(); };
+    box.appendChild(b);
+  });
+}
 function chips(f){
   var box=$("#c-"+f); if(!box) return;
   box.innerHTML="";
@@ -478,7 +507,7 @@ function renderFilters(){
     items(c[1]).forEach(function(v){ s.appendChild(new Option(v,v)); });
     s.value=k;
   });
-  chips("studio"); chips("style"); chips("teacher");
+  chips("studio"); chips("style"); chips("teacher"); billChips();
 }
 /* 设置页：调整顺序 */
 var odim="teacher";
@@ -500,6 +529,18 @@ function renameVal(f,oldv,newv){
   flatten(); cache(); renderAll(); renderOrder();
   toast(changed.length? ("已更新 "+changed.length+" 条"):"已重命名");
 }
+function setBillFor(f,v,bill){
+  var touched={}, changed=[];
+  Object.keys(years).forEach(function(y){
+    (years[y]||[]).forEach(function(r){
+      if(r[f]===v && r.bill!==bill){ r.bill=bill; r.updated_at=Date.now(); touched[y]=1; changed.push(r); }
+    });
+  });
+  Object.keys(touched).forEach(function(y){ writeYear(y); });
+  if(changed.length) push(changed);
+  flatten(); cache(); renderAll(); renderOrder();
+  toast("已标记 "+changed.length+" 条为「"+bill+"」");
+}
 function renderOrder(){
   var box=$("#ord-list"); box.innerHTML="";
   var list=items(odim);
@@ -509,7 +550,15 @@ function renderOrder(){
     var row=el("div","orow");
     var s=el("span"); s.appendChild(document.createTextNode(v));
     s.appendChild(el("small",null,"  "+(cnt[v]||0)+" 节"));
-    var ed=el("button","obtn","✎"), up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
+    var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"),
+        up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
+    bl.onclick=function(){
+      var t=window.prompt("把「"+v+"」的全部 "+(cnt[v]||0)+" 条记录标为哪种计费？\n1 = 畅跳\n2 = 非畅跳\n3 = 大师\n4 = 其他","2");
+      if(!t) return;
+      var m={"1":"畅跳","2":"非畅跳","3":"大师","4":"其他"}[t.trim()];
+      if(!m){ toast("请输入 1-4"); return; }
+      setBillFor(odim,v,m);
+    };
     function move(from,to){
       var l=items(odim);
       if(to<0||to>=l.length) return;
@@ -531,7 +580,7 @@ function renderOrder(){
       }
       renameVal(odim,v,nv);
     };
-    row.appendChild(s); row.appendChild(ed); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    row.appendChild(s); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
     box.appendChild(row);
   });
   if(!list.length) box.appendChild(el("div","empty","暂无选项"));
@@ -552,6 +601,7 @@ function inR(r){
   return (Date.now()-d.getTime())/86400000<=range;
 }
 function renderStats(){
+  renderPass();
   var rs=records.filter(inR);
   var lv=rs.filter(function(r){return r.level>0;});
   var avg=lv.length? lv.reduce(function(a,r){return a+r.level;},0)/lv.length:0;
@@ -634,8 +684,8 @@ Array.prototype.forEach.call($("#gran").children,function(b){
 /* ---- CSV ---- */
 function esc(v){ v=(v==null?"":""+v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 $("#exp").onclick=function(){
-  var L=["节数,日期,周数,舞房,舞种,老师,难度,备注"];
-  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,r.level,r.note].map(esc).join(",")); });
+  var L=["节数,日期,周数,舞房,舞种,老师,计费,难度,备注"];
+  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,r.bill||"畅跳",r.level,r.note].map(esc).join(",")); });
   var b=new Blob(["\ufeff"+L.join("\n")],{type:"text/csv;charset=utf-8"});
   var u=URL.createObjectURL(b), a=document.createElement("a");
   a.href=u; a.download="舞蹈记录.csv"; a.click();
@@ -671,7 +721,7 @@ $("#file").onchange=function(e){
       return -1; }
     var ci={d:col("日期","上课时间","时间","date"),st:col("舞房","舞蹈室","场馆","studio"),
       sy:col("舞种","风格","style"),tc:col("老师","教师","teacher"),
-      lv:col("难度","星级","评分","level"),nt:col("备注","note"),wk:col("周数","周次","week")};
+      lv:col("难度","星级","评分","level"),nt:col("备注","note"),wk:col("周数","周次","week"),bl:col("计费","卡种","bill")};
     if(ci.d<0){ toast("没找到日期列"); return; }
     var n=0, touched={};
     for(var i=1;i<rows.length;i++){
@@ -679,7 +729,7 @@ $("#file").onchange=function(e){
       var v=ci.lv>=0? parseFloat(r[ci.lv]):0; if(isNaN(v)) v=0;
       var rec={id:uid(),date:d,week:(ci.wk>=0?(r[ci.wk]||"").trim():"")||weekOf(d),
         studio:ci.st>=0?(r[ci.st]||"").trim():"",style:ci.sy>=0?(r[ci.sy]||"").trim():"",
-        teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",level:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
+        teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",bill:ci.bl>=0?(r[ci.bl]||"").trim():"",level:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
         note:ci.nt>=0?(r[ci.nt]||"").trim():"",seq:i};
       var y=yr(d); if(!years[y]) years[y]=[];
       years[y].push(rec); touched[y]=1; n++;
@@ -708,7 +758,7 @@ function push(list){
   if(!sbOn()||!list||!list.length) return Promise.resolve();
   var body=list.map(function(r){
     return {id:r.id,date:r.date||null,week:r.week||"",studio:r.studio||"",style:r.style||"",
-      teacher:r.teacher||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+      teacher:r.teacher||"",bill:r.bill||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
       deleted:!!r.deleted,updated_at:r.updated_at||Date.now()};
   });
   return fetch(sbUrl("classes"),{method:"POST",
@@ -732,7 +782,22 @@ function syncNow(){
   setSync("同步中…");
   pull().then(function(rows){
     var lm=localMap(), merged={}, toPush=[];
-    rows.forEach(function(r){ merged[r.id]=r; });
+    var cm={}; CARDS.forEach(function(c){ cm[c.id]=c; });
+    rows.forEach(function(r){
+      if(String(r.id).indexOf("_card_")===0){
+        try{
+          var rc=JSON.parse(r.note||"{}");
+          rc.id=r.id; rc.deleted=!!r.deleted; rc.updated_at=r.updated_at||0;
+          var lc=cm[r.id];
+          if(!lc||(lc.updated_at||0)<rc.updated_at) cm[r.id]=rc;
+        }catch(e){}
+        return;
+      }
+      if(r.id.charAt(0)==="_") return;
+      merged[r.id]=r;
+    });
+    CARDS=Object.keys(cm).map(function(k){ return cm[k]; });
+    saveCards(); renderCards(); renderPass();
     Object.keys(lm).forEach(function(id){
       var l=lm[id], c=merged[id];
       if(!c || (l.updated_at||0)>(c.updated_at||0)){ merged[id]=l; toPush.push(l); }
@@ -742,7 +807,7 @@ function syncNow(){
       var r=merged[id]; if(!r.date) return;
       var k=yr(r.date); if(!y[k]) y[k]=[];
       y[k].push({id:r.id,date:r.date,week:r.week||"",studio:r.studio||"",style:r.style||"",
-        teacher:r.teacher||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+        teacher:r.teacher||"",bill:r.bill||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
         deleted:!!r.deleted,updated_at:r.updated_at||0});
     });
     Object.keys(y).forEach(function(k){ y[k].sort(function(a,b){return a.date<b.date?-1:1;}); });
@@ -758,6 +823,102 @@ function saveCfg(){
   SB={url:u,key:k};
   try{ localStorage.setItem(SBKEY,JSON.stringify(SB)); }catch(e){}
   syncNow();
+}
+/* ========== 畅跳卡 ========== */
+var CKEY="dance_cards_v1", CARDS=[];
+try{ CARDS=JSON.parse(localStorage.getItem(CKEY)||"[]"); }catch(e){ CARDS=[]; }
+function saveCards(){ try{ localStorage.setItem(CKEY,JSON.stringify(CARDS)); }catch(e){} }
+function cardRow(c){
+  return {id:c.id,date:null,week:"",studio:"",style:"",teacher:"",bill:"_card",
+    level:0,note:JSON.stringify(c),seq:0,deleted:!!c.deleted,updated_at:c.updated_at||Date.now()};
+}
+function pushCards(list){ if(sbOn()&&list.length) push(list.map(cardRow)); }
+function isPass(r){ return !r.bill || r.bill==="畅跳"; }
+function inCard(r,c){ return r.date>=c.start && (!c.end || r.date<=c.end); }
+function cardStats(c){
+  var used=records.filter(function(r){ return isPass(r)&&inCard(r,c); });
+  var wk=weekOf(today());
+  var thisWeek=used.filter(function(r){ return (r.week||weekOf(r.date))===wk; }).length;
+  var per=used.length? (c.price/used.length):0;
+  var need=(c.unit&&c.unit>0)? Math.ceil(c.price/c.unit):0;
+  return {n:used.length,thisWeek:thisWeek,per:per,need:need,
+    saved:(c.unit>0? used.length*c.unit-c.price:0)};
+}
+function renderPass(){
+  var box=$("#pass-body"); if(!box) return;
+  box.innerHTML="";
+  var live=CARDS.filter(function(c){ return !c.deleted; })
+    .sort(function(a,b){ return a.start<b.start?1:-1; });
+  if(!live.length){ box.appendChild(el("div","empty","还没有添加畅跳卡，去「设置 → 畅跳卡管理」添加")); return; }
+  var td=today();
+  live.forEach(function(c){
+    var s=cardStats(c), active=(td>=c.start&&(!c.end||td<=c.end));
+    var w=el("div","pass");
+    var h1=el("b",null,c.name+(active?"　· 使用中":""));
+    w.appendChild(h1);
+    w.appendChild(el("div","meta",c.start+" 至 "+(c.end||"无限期")));
+    function line(k,v,warn){
+      var d=el("div","line");
+      d.appendChild(el("span",null,k));
+      var e=el("span",warn?"warn":null,v); d.appendChild(e); w.appendChild(d);
+    }
+    if(c.weekLimit>0&&active){
+      line("本周已约（"+weekOf(td)+"）",s.thisWeek+" / "+c.weekLimit, s.thisWeek>=c.weekLimit);
+      var m=el("div","meter"); var i=el("i");
+      i.style.width=Math.min(100,Math.round(s.thisWeek/c.weekLimit*100))+"%";
+      m.appendChild(i); w.appendChild(m);
+    }
+    line("本卡累计畅跳",s.n+" 节");
+    if(c.price>0){
+      line("卡费","¥"+c.price);
+      line("每节均摊", s.n? ("¥"+s.per.toFixed(1)):"—");
+      if(c.unit>0){
+        if(s.n>=s.need) line("回本状态","已回本，省 ¥"+Math.round(s.saved));
+        else line("回本还需",(s.need-s.n)+" 节（按单次 ¥"+c.unit+"）", true);
+      }
+    }
+    box.appendChild(w);
+  });
+}
+function editCard(c){
+  var isNew=!c;
+  c=c||{id:"_card_"+Date.now().toString(36),name:"",start:today(),end:"",price:0,weekLimit:0,unit:0};
+  var name=window.prompt("卡名称（如 大融城畅跳卡）",c.name); if(name===null) return;
+  var start=window.prompt("开卡日期 YYYY-MM-DD",c.start); if(start===null) return;
+  var end=window.prompt("到期日期 YYYY-MM-DD（不限期留空）",c.end); if(end===null) return;
+  var price=window.prompt("卡费（元）",c.price); if(price===null) return;
+  var wl=window.prompt("每周限约次数（不限填 0）",c.weekLimit); if(wl===null) return;
+  var unit=window.prompt("单次课参考价（元，用于算回本；不算填 0）",c.unit); if(unit===null) return;
+  c.name=name.trim()||"畅跳卡";
+  c.start=(start||"").trim(); c.end=(end||"").trim();
+  c.price=parseFloat(price)||0; c.weekLimit=parseInt(wl,10)||0; c.unit=parseFloat(unit)||0;
+  c.updated_at=Date.now(); c.deleted=false;
+  if(isNew) CARDS.push(c);
+  else CARDS=CARDS.map(function(x){ return x.id===c.id? c:x; });
+  saveCards(); pushCards([c]); renderCards(); renderPass(); toast("已保存");
+}
+function renderCards(){
+  var box=$("#card-list"); if(!box) return;
+  box.innerHTML="";
+  var live=CARDS.filter(function(c){ return !c.deleted; })
+    .sort(function(a,b){ return a.start<b.start?1:-1; });
+  if(!live.length){ box.appendChild(el("div","empty","还没有卡")); return; }
+  live.forEach(function(c){
+    var s=cardStats(c);
+    var row=el("div","orow");
+    var t=el("span");
+    t.appendChild(document.createTextNode(c.name));
+    t.appendChild(el("small",null,"  "+c.start+"~"+(c.end||"不限")+" · "+s.n+" 节"));
+    var ed=el("button","obtn","✎"); ed.onclick=function(){ editCard(c); };
+    var rm=el("button","obtn","✕");
+    rm.onclick=function(){
+      if(!confirm("删除卡「"+c.name+"」？上课记录不受影响。")) return;
+      c.deleted=true; c.updated_at=Date.now();
+      saveCards(); pushCards([c]); renderCards(); renderPass();
+    };
+    row.appendChild(t); row.appendChild(ed); row.appendChild(rm);
+    box.appendChild(row);
+  });
 }
 function clearCfg(){ SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
   $("#sb-url").value=""; $("#sb-key").value=""; setSync("已断开云端，改为仅本地存储");
@@ -807,7 +968,7 @@ function show(v){
   Object.keys(views).forEach(function(k){ $(views[k]).classList.toggle("hidden",k!==v); });
   Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){ b.className=b.dataset.v===v?"on":""; });
   if(v==="stats") renderStats();
-  if(v==="set") renderOrder();
+  if(v==="set"){ renderOrder(); renderCards(); }
   window.scrollTo(0,0);
 }
 Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){
@@ -825,6 +986,7 @@ $("#sb-save").onclick=saveCfg;
 $("#sb-sync").onclick=syncNow;
 $("#sb-clear").onclick=clearCfg;
 $("#sb-shift").onclick=shiftLegacy;
+$("#card-add").onclick=function(){ editCard(null); };
 if(sbOn()){ $("#sb-url").value=SB.url; $("#sb-key").value=SB.key; }
 
 buildStars(); resetForm(); renderAll(); initStore();
