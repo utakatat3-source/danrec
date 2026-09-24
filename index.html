@@ -127,6 +127,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .cd.in{background:var(--accent-soft)}
 .cd.end{background:var(--accent);color:#fff;font-weight:700}
 .cd.end::after{background:#fff}
+.drag{cursor:grab;touch-action:none;color:var(--muted);font-size:16px}
+.orow.dragging{opacity:.65;background:var(--accent-soft);border-radius:8px}
 .hidden{display:none!important}
 </style>
 </head>
@@ -173,6 +175,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
     <div class="field"><label>用哪张卡</label><div class="chips" id="c-bill"></div></div>
+    <div class="row">
+      <div class="field"><label>本节扣减</label><input type="number" id="i-qty" value="1" min="1" inputmode="numeric"></div>
+      <div class="field"><label>扣减单位</label><div class="sel"><select id="i-unit">
+        <option value="次">次</option><option value="天">天</option>
+      </select></div></div>
+    </div>
     <div class="field"><label>难度</label><div class="stars" id="i-stars"></div></div>
     <div class="field"><label>备注</label><textarea id="i-note" placeholder="小班 / 曲目 / 感受…"></textarea></div>
     <button class="btn" id="save">保存记录</button>
@@ -437,7 +445,7 @@ function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i]
 function resetForm(){
   editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
   pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="";
-  renderFilters(); $("#i-note").value="";
+  renderFilters(); $("#i-note").value=""; $("#i-qty").value=1; $("#i-unit").value="次";
   $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
 }
 function lastVal(f){ return records.length? (records[records.length-1][f]||"") : ""; }
@@ -445,7 +453,7 @@ function loadForm(r){
   editing=r.id; lvl=r.level||0;
   $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
   pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"";
-  renderFilters(); $("#i-note").value=r.note||"";
+  renderFilters(); $("#i-note").value=r.note||""; $("#i-qty").value=r.qty||1; $("#i-unit").value=r.unit||"次";
   $("#cancel").hidden=false; $("#save").textContent="保存修改";
   paint(); show("add");
 }
@@ -454,7 +462,7 @@ $("#save").onclick=async function(){
   var old=records.filter(function(r){return r.id===editing;})[0];
   var rec={id:editing||uid(),date:d,week:$("#i-week").value.trim()||weekOf(d),
     studio:pick.studio,style:pick.style,
-    teacher:pick.teacher,bill:pick.bill,level:lvl,note:$("#i-note").value.trim(),
+    teacher:pick.teacher,bill:pick.bill,qty:parseInt($("#i-qty").value,10)||1,unit:$("#i-unit").value,level:lvl,note:$("#i-note").value.trim(),
     seq:(old&&old.seq)||Date.now()%1e7};
   rec.updated_at=Date.now();
   if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
@@ -499,7 +507,8 @@ function renderList(){
     if(r.style) t.appendChild(el("span","pill",r.style));
     var bc=billMap[r.id];
     if(bc&&bc!=="self"){ var bcd=cardById(bc); if(bcd&&bcd.studio!==r.studio) t.appendChild(el("span","pill",bcd.name)); }
-    if(bc==="self") t.appendChild(el("span","pill","未记录付费"));
+    if(bc==="self") t.appendChild(el("span","pill","单独付费"));
+    if(qtyOf(r)>1) t.appendChild(el("span","pill",("扣"+qtyOf(r)+(r.unit||"次"))));
     t.appendChild(document.createTextNode(r.teacher||"—"));
     mm.appendChild(t);
     var meta=[]; if(r.week) meta.push(r.week); if(r.studio) meta.push(r.studio);
@@ -632,13 +641,49 @@ function setBillFor(f,v,bill){
   flatten(); cache(); renderAll(); renderOrder();
   toast("已更新 "+changed.length+" 条");
 }
+/* 按住手柄拖动排序（支持触摸和鼠标） */
+function makeSortable(box,onCommit){
+  var dragging=null, ph=null;
+  function rowOf(t){ while(t&&t!==box){ if(t.classList&&t.classList.contains("orow")) return t; t=t.parentNode; } return null; }
+  box.addEventListener("pointerdown",function(e){
+    var hd=e.target;
+    if(!hd.classList||!hd.classList.contains("drag")) return;
+    var row=rowOf(hd); if(!row) return;
+    e.preventDefault();
+    dragging=row; row.classList.add("dragging");
+    try{ hd.setPointerCapture(e.pointerId); }catch(err){}
+    ph=hd;
+  });
+  box.addEventListener("pointermove",function(e){
+    if(!dragging) return;
+    e.preventDefault();
+    dragging.style.pointerEvents="none";
+    var el2=document.elementFromPoint(e.clientX,e.clientY);
+    dragging.style.pointerEvents="";
+    var over=rowOf(el2);
+    if(!over||over===dragging) return;
+    var rect=over.getBoundingClientRect();
+    var after=(e.clientY-rect.top)>rect.height/2;
+    box.insertBefore(dragging, after? over.nextSibling:over);
+  });
+  function end(){
+    if(!dragging) return;
+    dragging.classList.remove("dragging"); dragging=null;
+    var vals=[];
+    Array.prototype.forEach.call(box.querySelectorAll(".orow"),function(r){ vals.push(r.dataset.val); });
+    onCommit(vals);
+  }
+  box.addEventListener("pointerup",end);
+  box.addEventListener("pointercancel",end);
+}
 function renderOrder(){
   var box=$("#ord-list"); box.innerHTML="";
   var list=items(odim);
   var cnt={}; records.forEach(function(r){ if(r[odim]) cnt[r[odim]]=(cnt[r[odim]]||0)+1; });
   var label={studio:"舞房",style:"舞种",teacher:"老师"}[odim];
   list.forEach(function(v,i){
-    var row=el("div","orow");
+    var row=el("div","orow"); row.dataset.val=v;
+    var dh=el("button","obtn drag","≡"); dh.type="button";
     var s=el("span"); s.appendChild(document.createTextNode(v));
     s.appendChild(el("small",null,"  "+(cnt[v]||0)+" 节"));
     var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"),
@@ -675,10 +720,17 @@ function renderOrder(){
       }
       renameVal(odim,v,nv);
     };
-    row.appendChild(s); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    row.appendChild(dh); row.appendChild(s); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
     box.appendChild(row);
   });
   if(!list.length) box.appendChild(el("div","empty","暂无选项"));
+  if(!box.dataset.sortable){
+    box.dataset.sortable="1";
+    makeSortable(box,function(vals){
+      ORDER[odim]=vals.filter(Boolean); saveOrder();
+      chips(odim); renderTimeFilter(); toast("顺序已保存");
+    });
+  }
 }
 Array.prototype.forEach.call($("#ord-dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#ord-dim").children,function(x){x.className="";});
@@ -841,8 +893,8 @@ Array.prototype.forEach.call($("#gran").children,function(b){
 /* ---- CSV ---- */
 function esc(v){ v=(v==null?"":""+v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 $("#exp").onclick=function(){
-  var L=["节数,日期,周数,舞房,舞种,老师,计费,难度,备注"];
-  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,r.bill||"畅跳",r.level,r.note].map(esc).join(",")); });
+  var L=["节数,日期,周数,舞房,舞种,老师,用卡,扣减,单位,难度,备注"];
+  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,(function(){var b=billMap[r.id];if(b==="self")return "单独付费";var c=cardById(b);return c?c.name:"";})(),qtyOf(r),r.unit||"次",r.level,r.note].map(esc).join(",")); });
   var b=new Blob(["\ufeff"+L.join("\n")],{type:"text/csv;charset=utf-8"});
   var u=URL.createObjectURL(b), a=document.createElement("a");
   a.href=u; a.download="舞蹈记录.csv"; a.click();
@@ -915,7 +967,7 @@ function push(list){
   if(!sbOn()||!list||!list.length) return Promise.resolve();
   var body=list.map(function(r){
     return {id:r.id,date:r.date||null,week:r.week||"",studio:r.studio||"",style:r.style||"",
-      teacher:r.teacher||"",bill:r.bill||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+      teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",seq:r.seq||0,
       deleted:!!r.deleted,updated_at:r.updated_at||Date.now()};
   });
   return fetch(sbUrl("classes"),{method:"POST",
@@ -964,7 +1016,7 @@ function syncNow(){
       var r=merged[id]; if(!r.date) return;
       var k=yr(r.date); if(!y[k]) y[k]=[];
       y[k].push({id:r.id,date:r.date,week:r.week||"",studio:r.studio||"",style:r.style||"",
-        teacher:r.teacher||"",bill:r.bill||"",level:r.level||0,note:r.note||"",seq:r.seq||0,
+        teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",seq:r.seq||0,
         deleted:!!r.deleted,updated_at:r.updated_at||0});
     });
     Object.keys(y).forEach(function(k){ y[k].sort(function(a,b){return a.date<b.date?-1:1;}); });
@@ -1016,6 +1068,7 @@ function orderedCards(){
     });
 }
 var billMap={}, cardLeft={};
+function qtyOf(r){ return Math.max(1,parseInt(r.qty,10)||1); }
 function computeBills(){
   billMap={}; cardLeft={};
   var cs=orderedCards();
@@ -1023,17 +1076,19 @@ function computeBills(){
   cs.forEach(function(c){ if(c.kind==="count") left[c.id]=(c.total>0? c.total:1e9); });
   function consume(c,r){
     if(!c) return;
-    if(c.kind==="count") left[c.id]=(left[c.id]||0)-1;
-    if(c.kind==="month") { var k=c.id+"|"+monthOf(r.date); moUse[k]=(moUse[k]||0)+1; }
-    if(c.kind==="pass") { var k2=c.id+"|"+(r.week||weekOf(r.date)); wkUse[k2]=(wkUse[k2]||0)+1; }
+    var q=qtyOf(r);
+    if(c.kind==="count") left[c.id]=(left[c.id]||0)-q;
+    if(c.kind==="month"){ var k=c.id+"|"+monthOf(r.date); moUse[k]=(moUse[k]||0)+q; }
+    if(c.kind==="pass"){ var k2=c.id+"|"+(r.week||weekOf(r.date)); wkUse[k2]=(wkUse[k2]||0)+q; }
   }
   function fits(c,r){
+    var q=qtyOf(r);
     if(c.studio && c.studio!==r.studio) return false;
     if(r.date<c.start) return false;
     if(c.end && r.date>c.end) return false;
-    if(c.kind==="count" && (left[c.id]||0)<=0) return false;
-    if(c.kind==="month" && c.limit>0 && (moUse[c.id+"|"+monthOf(r.date)]||0)>=c.limit) return false;
-    if(c.kind==="pass" && c.limit>0 && (wkUse[c.id+"|"+(r.week||weekOf(r.date))]||0)>=c.limit) return false;
+    if(c.kind==="count" && (left[c.id]||0)<q) return false;
+    if(c.kind==="month" && c.limit>0 && (moUse[c.id+"|"+monthOf(r.date)]||0)+q>c.limit) return false;
+    if(c.kind==="pass" && c.limit>0 && (wkUse[c.id+"|"+(r.week||weekOf(r.date))]||0)+q>c.limit) return false;
     return true;
   }
   records.forEach(function(r){
@@ -1045,7 +1100,7 @@ function computeBills(){
     var hit=null;
     for(var i=0;i<cs.length;i++){ if(fits(cs[i],r)){ hit=cs[i]; break; } }
     if(hit){ billMap[r.id]=hit.id; consume(hit,r); }
-    else billMap[r.id]="self";
+    else billMap[r.id]="";        /* 未匹配 = 未指定，不算单独付费 */
   });
   cs.forEach(function(c){ if(c.kind==="count") cardLeft[c.id]=Math.max(0,left[c.id]); });
 }
@@ -1053,10 +1108,11 @@ function monthOf(d){ return (d||"").slice(0,7); }
 function cardUsage(c){
   var used=records.filter(function(r){ return billMap[r.id]===c.id; });
   var wk=weekOf(today()), mo=monthOf(today());
+  function sum(a){ return a.reduce(function(s,r){ return s+qtyOf(r); },0); }
   return {
-    n:used.length,
-    week:used.filter(function(r){ return (r.week||weekOf(r.date))===wk; }).length,
-    month:used.filter(function(r){ return monthOf(r.date)===mo; }).length,
+    n:used.length, q:sum(used),
+    week:sum(used.filter(function(r){ return (r.week||weekOf(r.date))===wk; })),
+    month:sum(used.filter(function(r){ return monthOf(r.date)===mo; })),
     per:used.length? c.price/used.length:0
   };
 }
@@ -1080,7 +1136,7 @@ function renderPass(){
   all.slice().sort(function(a,b){ return (b.start||"")<(a.start||"")?-1:1; }).forEach(function(c){
     var u=cardUsage(c), active=(c.start&&td>=c.start&&(!c.end||td<=c.end));
     var w=el("div","pass");
-    w.appendChild(el("b",null,c.name+(active?"　· 使用中":(c.start?"":"　· 未开卡"))));
+    w.appendChild(el("b",null,c.name+(active?"　· 使用中":((!c.start&&!u.n)?"　· 未开卡":""))));
     var sub=[kindName(c.kind)];
     if(c.studio) sub.push(c.studio);
     if(c.start) sub.push(c.start+" 至 "+(c.end||"不限"));
@@ -1106,12 +1162,12 @@ function renderPass(){
       i2.style.width=Math.min(100,Math.round(u.month/c.limit*100))+"%"; m2.appendChild(i2); w.appendChild(m2);
     }
     if(c.kind==="count"&&c.total>0){
-      line("已用 / 总次数",u.n+" / "+c.total,u.n>=c.total);
+      line("已用 / 总次数",u.q+" / "+c.total,u.q>=c.total);
       var m3=el("div","meter"),i3=el("i");
-      i3.style.width=Math.min(100,Math.round(u.n/c.total*100))+"%"; m3.appendChild(i3); w.appendChild(m3);
+      i3.style.width=Math.min(100,Math.round(u.q/c.total*100))+"%"; m3.appendChild(i3); w.appendChild(m3);
       line("剩余",(cardLeft[c.id]!=null? cardLeft[c.id]:Math.max(0,c.total-u.n))+" 次");
     } else {
-      line("累计上课",u.n+" 节");
+      line("累计上课",u.n+" 节"+(u.q!==u.n? ("（扣 "+u.q+"）"):""));
     }
     if(c.price>0){
       line("卡费","¥"+c.price);
@@ -1175,7 +1231,8 @@ function renderCards(){
   if(!live.length){ box.appendChild(el("div","empty","还没有卡")); return; }
   live.forEach(function(c){
     var u=cardUsage(c);
-    var row=el("div","orow");
+    var row=el("div","orow"); row.dataset.val=c.id;
+    var dh=el("button","obtn drag","≡"); dh.type="button";
     var t=el("span");
     t.appendChild(document.createTextNode(c.name));
     t.appendChild(el("small",null,"  ¥"+c.price+" · "+kindName(c.kind)+" · "+u.n+" 节"));
@@ -1198,9 +1255,20 @@ function renderCards(){
       c.deleted=true; c.updated_at=Date.now();
       saveCards(); pushCards([c]); computeBills(); renderCards(); renderPass(); billChips();
     };
-    row.appendChild(t); row.appendChild(ed); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
+    row.appendChild(dh); row.appendChild(t); row.appendChild(ed); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
     box.appendChild(row);
   });
+  if(!box.dataset.sortable){
+    box.dataset.sortable="1";
+    makeSortable(box,function(vals){
+      var changed=[];
+      vals.forEach(function(id,k){
+        var c2=cardById(id);
+        if(c2&&c2.ord!==k){ c2.ord=k; c2.updated_at=Date.now(); changed.push(c2); }
+      });
+      if(changed.length){ saveCards(); pushCards(changed); computeBills(); renderPass(); toast("顺序已保存"); }
+    });
+  }
 }
 function clearCfg(){ SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
   $("#sb-url").value=""; $("#sb-key").value=""; setSync("已断开云端，改为仅本地存储");
@@ -1254,7 +1322,12 @@ function show(v){
   Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){ b.className=b.dataset.v===v?"on":""; });
   if(v==="stats") renderStats();
   if(v==="set"){ renderOrder(); renderCards(); }
-  if(v==="list"&&listScroll>0) setTimeout(function(){ window.scrollTo(0,listScroll); },0);
+  if(v==="list"&&listScroll>0){
+    var goal=listScroll;
+    requestAnimationFrame(function(){ window.scrollTo(0,goal); });
+    setTimeout(function(){ window.scrollTo(0,goal); },60);
+    setTimeout(function(){ window.scrollTo(0,goal); },200);
+  }
   else window.scrollTo(0,0);
 }
 Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){
