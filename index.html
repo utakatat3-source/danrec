@@ -133,8 +133,21 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <div class="sel"><select id="f-style"><option value="">全部舞种</option></select></div>
       <div class="sel"><select id="f-teacher"><option value="">全部老师</option></select></div>
     </div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="sel"><select id="f-time"><option value="">全部时间</option></select></div>
+    </div>
+    <div class="row" style="gap:8px;margin-bottom:8px;align-items:center">
+      <input type="date" id="f-from" aria-label="开始日期">
+      <span style="flex:0 0 auto;color:var(--muted);font-size:13px">至</span>
+      <input type="date" id="f-to" aria-label="结束日期">
+    </div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <button class="btn ghost" id="f-7" style="padding:7px 0;font-size:13px">近7天</button>
+      <button class="btn ghost" id="f-30" style="padding:7px 0;font-size:13px">近30天</button>
+      <button class="btn ghost" id="f-clear" style="padding:7px 0;font-size:13px">清空筛选</button>
+    </div>
     <div class="row" style="gap:8px">
-      <input id="f-kw" placeholder="搜索老师 / 备注">
+      <input id="f-kw" placeholder="搜索老师 / 备注 / 周数">
       <button class="btn ghost" id="f-sort" style="flex:0 0 auto;height:46px;padding:0 12px;font-size:13px;width:auto">最新在前 ↓</button>
     </div>
   </div>
@@ -401,11 +414,16 @@ var desc=true, page=60;
 function filtered(){
   var fs=$("#f-studio").value,fy=$("#f-style").value,ft=$("#f-teacher").value;
   var kw=$("#f-kw").value.trim().toLowerCase();
+  var ft2=$("#f-time").value;
+  var dFrom=$("#f-from").value, dTo=$("#f-to").value;
   var rs=records.filter(function(r){
+    if(ft2&&r.date.indexOf(ft2)!==0) return false;
+    if(dFrom&&r.date<dFrom) return false;
+    if(dTo&&r.date>dTo) return false;
     if(fs&&r.studio!==fs) return false;
     if(fy&&r.style!==fy) return false;
     if(ft&&r.teacher!==ft) return false;
-    if(kw){ var s=((r.teacher||"")+" "+(r.note||"")+" "+(r.style||"")).toLowerCase(); if(s.indexOf(kw)<0) return false; }
+    if(kw){ var s=((r.teacher||"")+" "+(r.note||"")+" "+(r.style||"")+" "+(r.week||"")).toLowerCase(); if(s.indexOf(kw)<0) return false; }
     return true;
   });
   return desc? rs.slice().reverse() : rs.slice();
@@ -501,7 +519,22 @@ function chips(f){
   };
   box.appendChild(a);
 }
+function renderTimeFilter(){
+  var s=$("#f-time"), keep=s.value;
+  var ys={}, ms={};
+  records.forEach(function(r){ ys[r.date.slice(0,4)]=1; ms[r.date.slice(0,7)]=1; });
+  s.innerHTML=""; s.appendChild(new Option("全部时间",""));
+  Object.keys(ys).sort().reverse().forEach(function(y){
+    s.appendChild(new Option(y+" 年（全年）",y));
+    Object.keys(ms).filter(function(m){ return m.indexOf(y)===0; })
+      .sort().reverse().forEach(function(m){
+        s.appendChild(new Option("　"+y+" 年 "+m.slice(5)+" 月",m));
+      });
+  });
+  s.value=keep;
+}
 function renderFilters(){
+  renderTimeFilter();
   [["#f-studio","studio","全部舞房"],["#f-style","style","全部舞种"],["#f-teacher","teacher","全部老师"]].forEach(function(c){
     var s=$(c[0]),k=s.value; s.innerHTML=""; s.appendChild(new Option(c[2],""));
     items(c[1]).forEach(function(v){ s.appendChild(new Option(v,v)); });
@@ -589,7 +622,19 @@ Array.prototype.forEach.call($("#ord-dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#ord-dim").children,function(x){x.className="";});
     b.className="on"; odim=b.dataset.d; renderOrder(); };
 });
-["#f-studio","#f-style","#f-teacher"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
+["#f-studio","#f-style","#f-teacher","#f-time","#f-from","#f-to"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
+function daysAgo(n){ var d=new Date(Date.now()-n*86400000); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function quickRange(n){
+  $("#f-time").value=""; $("#f-from").value=daysAgo(n); $("#f-to").value=today();
+  page=60; renderList();
+}
+$("#f-7").onclick=function(){ quickRange(7); };
+$("#f-30").onclick=function(){ quickRange(30); };
+$("#f-clear").onclick=function(){
+  $("#f-time").value=""; $("#f-from").value=""; $("#f-to").value="";
+  $("#f-studio").value=""; $("#f-style").value=""; $("#f-teacher").value=""; $("#f-kw").value="";
+  page=60; renderList();
+};
 $("#f-kw").oninput=function(){ page=60; renderList(); };
 $("#f-sort").onclick=function(){ desc=!desc; this.textContent=desc?"最新在前 ↓":"最早在前 ↑"; page=60; renderList(); };
 
