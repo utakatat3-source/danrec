@@ -248,7 +248,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="hd"><h2>卡与花费</h2></div>
     <div id="card-list"></div>
     <button class="btn ghost" id="card-add" style="margin-top:10px">＋ 添加卡 / 单次消费</button>
-    <div class="note" style="margin-top:8px">多张卡同时有效时，按下面的顺序从上往下扣：次卡扣完、周/月限额满了，就自动落到下一张。用 ↑↓ 调整优先级。</div>
+    <div class="note" style="margin-top:8px">多张卡同时有效时，按下面的顺序从上往下扣：次卡扣完、周/月限额满了，就自动落到下一张。↑↓ 调优先级，◆ 点成 ◇ 表示在选卡时折叠。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>选项排序</h2></div>
@@ -406,7 +406,9 @@ function syncCloud(){
 }
 function cache(){ try{ localStorage.setItem(LKEY,JSON.stringify(years)); }catch(e){} }
 function writeYear(y){
+  var sy=window.scrollY||0;
   cache(); flatten(); renderAll();
+  if(!$("#v-list").classList.contains("hidden")) setTimeout(function(){ window.scrollTo(0,sy); },0);
   if(DB){
     try{ DB.collection("log").doc(y).set({items:years[y]||[]}).catch(function(){}); }catch(e){}
   }
@@ -520,6 +522,26 @@ function renderList(){
     if(r.level) mm.appendChild(el("div","st",stars(r.level)));
     if(r.note) mm.appendChild(el("div","meta","📝 "+r.note));
     var act=el("div"); act.style.cssText="flex:0 0 auto;display:flex;flex-direction:column;gap:6px";
+    var sameDay=records.filter(function(x){ return x.date===r.date; });
+    if(sameDay.length>1){
+      var nav=el("div"); nav.style.cssText="display:flex;gap:4px";
+      var u2=el("button","btn ghost sm","↑"), d2=el("button","btn ghost sm","↓");
+      u2.style.padding="5px 8px"; d2.style.padding="5px 8px";
+      function swapDay(dir){
+        sameDay.sort(function(a,b){ return (a.seq||0)-(b.seq||0); });
+        var i=sameDay.map(function(x){return x.id;}).indexOf(r.id);
+        var j=i+dir; if(j<0||j>=sameDay.length) return;
+        var a=sameDay[i], b=sameDay[j];
+        var tmp=a.seq||0; a.seq=b.seq||0; b.seq=tmp;
+        if(a.seq===b.seq){ a.seq=i; b.seq=j; }
+        a.updated_at=Date.now(); b.updated_at=Date.now();
+        listScroll=window.scrollY||0;
+        writeYear(yr(r.date)); push([a,b]);
+      }
+      u2.onclick=function(){ swapDay(-1); };
+      d2.onclick=function(){ swapDay(1); };
+      nav.appendChild(u2); nav.appendChild(d2); act.appendChild(nav);
+    }
     var e=el("button","btn ghost sm","改"); e.onclick=function(){ listScroll=window.scrollY||0; loadForm(r); };
     var x=el("button","btn ghost sm","删");
     x.onclick=function(){ confirmDlg("<b>删除这条记录？</b><div class='note' style='margin-top:6px'>"+r.date+" "+(r.teacher||"")+"</div>",function(){ dropRec(r.id); toast("已删除"); }); };
@@ -596,11 +618,12 @@ function billChips(){
   var box=$("#c-bill"); if(!box) return; box.innerHTML="";
   var d=$("#i-date").value||today();
   var main=[], rest=[];
-  liveCards().forEach(function(c){
-    if(c.id===pick.bill) main.push(c);
-    else if(cardActive(c,d)) main.push(c);
-    else rest.push(c);
-  });
+  orderedCards().concat(liveCards().filter(function(c){ return c.kind==="once"||!c.start; }))
+    .forEach(function(c){
+      if(c.id===pick.bill) main.push(c);
+      else if(isHidden("card",c.id)) rest.push(c);
+      else main.push(c);
+    });
   var show=billExpand? main.concat(rest):main;
   show.forEach(function(c){
     var b=el("button","chip"+(pick.bill===c.id?" on":""),c.name); b.type="button";
@@ -666,7 +689,11 @@ function renderFilters(){
   renderTimeFilter();
   [["#f-studio","studio","全部舞房"],["#f-style","style","全部舞种"],["#f-teacher","teacher","全部老师"]].forEach(function(c){
     var s=$(c[0]),k=s.value; s.innerHTML=""; s.appendChild(new Option(c[2],""));
-    items(c[1]).forEach(function(v){ s.appendChild(new Option(v,v)); });
+    var f=c[1], all=items(f);
+    var vis=all.filter(function(v){ return !isHidden(f,v); });
+    var hid=all.filter(function(v){ return isHidden(f,v); });
+    vis.forEach(function(v){ s.appendChild(new Option(v,v)); });
+    hid.forEach(function(v){ s.appendChild(new Option("· "+v,v)); });
     s.value=k;
   });
   chips("studio"); chips("style"); chips("teacher"); billChips();
@@ -1316,6 +1343,8 @@ function renderCards(){
     var t=el("span");
     t.appendChild(document.createTextNode(c.name));
     t.appendChild(el("small",null,"  ¥"+c.price+" · "+kindName(c.kind)+" · "+u.n+" 节"));
+    var hd2=el("button","obtn"+(isHidden("card",c.id)?" act":""),isHidden("card",c.id)?"◇":"◆");
+    hd2.onclick=function(){ toggleHidden("card",c.id); renderCards(); billChips(); };
     var ed=el("button","obtn","✎"); ed.onclick=function(){ openCardDlg(c); };
     var up=el("button","obtn","↑"), dn=el("button","obtn","↓");
     function reorder(dir){
@@ -1335,7 +1364,7 @@ function renderCards(){
       c.deleted=true; c.updated_at=Date.now();
       saveCards(); pushCards([c]); computeBills(); renderCards(); renderPass(); billChips();
     };
-    row.appendChild(dh); row.appendChild(t); row.appendChild(ed); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
+    row.appendChild(dh); row.appendChild(t); row.appendChild(hd2); row.appendChild(ed); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
     box.appendChild(row);
   });
   if(!box.dataset.sortable){
