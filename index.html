@@ -77,7 +77,7 @@ button{font-family:inherit;font-size:15px;cursor:pointer;border:none;background:
 .kpi b{display:block;font-size:19px;font-weight:700;line-height:1.2}
 .kpi span{font-size:10px;color:var(--muted)}
 .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}
-.seg button{flex:1;padding:8px 2px;font-size:13px;color:var(--muted);background:var(--card)}
+.seg button{flex:1;padding:8px 1px;font-size:12.5px;color:var(--muted);background:var(--card)}
 .seg button.on{background:var(--accent);color:#fff;font-weight:650}
 .tbl{width:100%;overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -140,6 +140,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .ins{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.6}
 .ins:last-child{border-bottom:none}
 .dotm{color:var(--accent);font-weight:700;flex:0 0 auto}
+.lgd{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  padding:5px 0;font-size:13px;border-bottom:1px solid var(--line)}
+.lgd:last-child{border-bottom:none}
+.lgd-n{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lgd-n i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;flex:0 0 auto}
+.lgd-v{flex:0 0 auto;color:var(--muted);font-weight:600;white-space:nowrap}
 .hidden{display:none!important}
 </style>
 </head>
@@ -208,15 +214,19 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 
 <section id="v-stats" class="hidden">
   <div class="card" style="padding:12px">
-    <div class="seg" id="range">
-      <button data-r="30">近30天</button>
-      <button data-r="90">近3月</button>
-      <button data-r="365">近1年</button>
-      <button data-r="0" class="on">全部</button>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="sel"><select id="s-quick">
+        <option value="7">近 7 天</option>
+        <option value="30">近 30 天</option>
+        <option value="90">近 3 个月</option>
+        <option value="180">近半年</option>
+        <option value="365">近 1 年</option>
+        <option value="0" selected>全部</option>
+      </select></div>
+      <div class="sel"><select id="s-week"><option value="">按周查看</option></select></div>
     </div>
     <div class="row" style="gap:8px;margin-bottom:8px">
-      <button class="btn ghost" id="s-range" style="font-size:13px;padding:10px 6px">自定义区间</button>
-      <div class="sel" style="flex:1"><select id="s-week"><option value="">按周查看</option></select></div>
+      <button class="btn ghost" id="s-range" style="font-size:14px;height:46px;padding:0 8px">自定义时间范围</button>
     </div>
     <div class="note" id="s-label"></div>
   </div>
@@ -923,7 +933,6 @@ $("#cal-ok").onclick=function(){
     sFrom=rFrom; sTo=rTo;
     $("#s-range").textContent = sFrom? (sFrom.slice(5)+" ~ "+sTo.slice(5)):"自定义区间";
     $("#s-week").value="";
-    Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
     renderStats();
     rFrom=""; rTo="";
     return;
@@ -940,7 +949,6 @@ $("#s-week").onchange=function(){
   var n=parseInt(w.replace(/\D/g,""),10)||1;
   sFrom=weekStartDate(n); sTo=addDays(sFrom,6);
   $("#s-range").textContent=sFrom.slice(5)+" ~ "+sTo.slice(5);
-  Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
   renderStats();
 };
 function quickRange(n){
@@ -1030,8 +1038,8 @@ function svgPie(items){
     '<text x="80" y="94" font-size="10" text-anchor="middle" fill="var(--muted)">节</text></svg>';
   var lg='<div style="flex:1;min-width:0">';
   items.forEach(function(it,i){
-    lg+='<div class="line"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'
-      +PAL[i%PAL.length]+';margin-right:6px"></i>'+it.n+'</span><span>'+it.v+' · '+Math.round(it.v/tot*100)+'%</span></div>';
+    lg+='<div class="lgd"><span class="lgd-n"><i style="background:'+PAL[i%PAL.length]+'"></i>'+it.n
+      +'</span><span class="lgd-v">'+it.v+' 节 · '+Math.round(it.v/tot*100)+'%</span></div>';
   });
   lg+='</div>';
   return '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+svg+lg+'</div>';
@@ -1322,11 +1330,10 @@ function renderInsights(rs){
   });
 }
 function uniqIn(rs,f){ var m={}; rs.forEach(function(r){ if(r[f]) m[r[f]]=1; }); return Object.keys(m).length; }
-Array.prototype.forEach.call($("#range").children,function(b){
-  b.onclick=function(){ Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
-    b.className="on"; range=parseInt(b.dataset.r,10); sFrom=""; sTo="";
-    $("#s-week").value=""; $("#s-range").textContent="自定义区间"; renderStats(); };
-});
+$("#s-quick").onchange=function(){
+  range=parseInt(this.value,10)||0; sFrom=""; sTo="";
+  $("#s-week").value=""; $("#s-range").textContent="自定义时间范围"; renderStats();
+};
 Array.prototype.forEach.call($("#dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#dim").children,function(x){x.className="";});
     b.className="on"; dim=b.dataset.d; aggExpand=false; renderStats(); };
