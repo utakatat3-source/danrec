@@ -137,6 +137,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .s-idle{background:var(--line);color:var(--muted)}
 .s-done{background:transparent;border:1px solid var(--line);color:var(--muted)}
 .s-once{background:var(--accent-soft);color:var(--accent)}
+.ins{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.6}
+.ins:last-child{border-bottom:none}
+.dotm{color:var(--accent);font-weight:700;flex:0 0 auto}
 .hidden{display:none!important}
 </style>
 </head>
@@ -204,30 +207,56 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </section>
 
 <section id="v-stats" class="hidden">
-  <div class="seg" id="range">
-    <button data-r="30">近30天</button>
-    <button data-r="90">近3月</button>
-    <button data-r="365">近1年</button>
-    <button data-r="0" class="on">全部</button>
+  <div class="card" style="padding:12px">
+    <div class="seg" id="range">
+      <button data-r="30">近30天</button>
+      <button data-r="90">近3月</button>
+      <button data-r="365">近1年</button>
+      <button data-r="0" class="on">全部</button>
+    </div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <button class="btn ghost" id="s-range" style="font-size:13px;padding:10px 6px">自定义区间</button>
+      <div class="sel" style="flex:1"><select id="s-week"><option value="">按周查看</option></select></div>
+    </div>
+    <div class="note" id="s-label"></div>
   </div>
+
   <div class="kpis" id="kpis"></div>
+
   <div class="card">
+    <div class="hd"><h2>上课趋势</h2></div>
+    <div class="seg" id="gran" style="margin-bottom:12px">
+      <button data-g="month" class="on">按月</button>
+      <button data-g="week">按周</button>
+      <button data-g="day">按天</button>
+    </div>
+    <div id="trend"></div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><h2>构成分布</h2></div>
     <div class="seg" id="dim" style="margin-bottom:12px">
       <button data-d="teacher" class="on">老师</button>
       <button data-d="style">舞种</button>
       <button data-d="studio">舞房</button>
+      <button data-d="card">用卡</button>
     </div>
+    <div id="pie"></div>
     <div class="tbl"><table id="agg"></table></div>
     <div id="agg-more" style="text-align:center;margin-top:10px"></div>
-    <div class="note" style="margin-top:10px">点表头切换排序：课数 / 平均难度 / 最近一次。</div>
+    <div class="note" style="margin-top:10px">点表头切换排序：课数 / 平均难度 / 最近一次。少于 3 节的默认折叠。</div>
   </div>
+
   <div class="card">
-    <div class="seg" id="gran">
-      <button data-g="month" class="on">按月分布</button>
-      <button data-g="week">按周分布</button>
-    </div>
-    <div class="tbl"><table id="months"></table></div>
+    <div class="hd"><h2>难度分布</h2></div>
+    <div id="lvbar"></div>
   </div>
+
+  <div class="card" id="insight-card">
+    <div class="hd"><h2>小结</h2><button class="btn ghost sm" id="ins-more">换一批</button></div>
+    <div id="insights"></div>
+  </div>
+
   <div class="card">
     <div class="hd"><h2>花费总览</h2></div>
     <div class="kpis" id="cost-kpis" style="grid-template-columns:repeat(3,1fr)"></div>
@@ -254,14 +283,13 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <button class="btn ghost" id="sb-sync">立即同步</button>
     </div>
     <button class="btn ghost" id="sb-clear" style="margin-top:8px">断开云端</button>
-    <button class="btn ghost" id="sb-shift" style="margin-top:8px">原始数据难度整体 +1（限一次）</button>
     <div class="note" style="margin-top:10px">密钥只存在本机浏览器，不会出现在网站文件里。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>卡与花费</h2></div>
     <div id="card-list"></div>
     <button class="btn ghost" id="card-add" style="margin-top:10px">＋ 添加卡 / 单次消费</button>
-    <div class="note" style="margin-top:8px">多张卡同时有效时，按下面的顺序从上往下扣：次卡扣完、周/月限额满了，就自动落到下一张。↑↓ 调优先级，◆ 点成 ◇ 表示在选卡时折叠。</div>
+    <div class="note" style="margin-top:8px">多张卡同时有效时，按下面的顺序从上往下扣：次卡扣完、周/月限额满了，就自动落到下一张。按住 ≡ 拖动调整优先级，◆ 点成 ◇ 表示在选卡时折叠。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>选项排序</h2></div>
@@ -795,8 +823,7 @@ function renderOrder(){
     var hd2=el("button","obtn"+(isHidden(odim,v)?" act":""),isHidden(odim,v)?"◇":"◆");
     hd2.title="折叠/展开";
     hd2.onclick=function(){ toggleHidden(odim,v); renderOrder(); chips(odim); };
-    var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"),
-        up=el("button","obtn","↑"), dn=el("button","obtn","↓"), top=el("button","obtn","⇧");
+    var ed=el("button","obtn","✎"), bl=el("button","obtn","¥"), top=el("button","obtn","⇧");
     bl.onclick=function(){
       var opts=[{v:"",t:"自动匹配"}];
       liveCards().forEach(function(c){ opts.push({v:c.id,t:c.name}); });
@@ -814,8 +841,6 @@ function renderOrder(){
       var x=l.splice(from,1)[0]; l.splice(to,0,x);
       ORDER[odim]=l; saveOrder(); renderOrder(); chips(odim); renderFilters();
     }
-    up.onclick=function(){ move(i,i-1); };
-    dn.onclick=function(){ move(i,i+1); };
     top.onclick=function(){ move(i,0); };
     ed.onclick=function(){
       var nv=window.prompt("重命名"+label+"（清空则删除该选项）",v);
@@ -829,7 +854,7 @@ function renderOrder(){
       }
       renameVal(odim,v,nv);
     };
-    row.appendChild(dh); row.appendChild(s); row.appendChild(hd2); row.appendChild(ed); row.appendChild(bl); row.appendChild(top); row.appendChild(up); row.appendChild(dn);
+    row.appendChild(dh); row.appendChild(s); row.appendChild(hd2); row.appendChild(ed); row.appendChild(bl); row.appendChild(top);
     box.appendChild(row);
   });
   if(!list.length) box.appendChild(el("div","empty","暂无选项"));
@@ -848,14 +873,16 @@ Array.prototype.forEach.call($("#ord-dim").children,function(b){
 ["#f-studio","#f-style","#f-teacher","#f-time"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
 function daysAgo(n){ var d=new Date(Date.now()-n*86400000); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
 /* ---- 单日历区间选择 ---- */
-var rFrom="", rTo="", calY=0, calM=0;
+var rFrom="", rTo="", calY=0, calM=0, calTarget="list";
 function rangeLabel(){
   if(rFrom&&rTo) return rFrom+" 至 "+rTo;
   if(rFrom) return rFrom+" 起";
   if(rTo) return "截至 "+rTo;
   return "选择日期区间";
 }
-function openCal(){
+function openCal(tgt){
+  calTarget=tgt||"list";
+  if(calTarget==="stats"){ rFrom=sFrom; rTo=sTo; }
   var base=rFrom||today();
   calY=parseInt(base.slice(0,4),10); calM=parseInt(base.slice(5,7),10)-1;
   drawCal(); $("#cal").showModal();
@@ -891,11 +918,31 @@ $("#cal-next").onclick=function(){ calM++; if(calM>11){calM=0;calY++;} drawCal()
 $("#cal-clear").onclick=function(){ rFrom=""; rTo=""; drawCal(); };
 $("#cal-ok").onclick=function(){
   if(rFrom&&!rTo) rTo=rFrom;
-  $("#cal").close(); $("#f-range").textContent=rangeLabel();
+  $("#cal").close();
+  if(calTarget==="stats"){
+    sFrom=rFrom; sTo=rTo;
+    $("#s-range").textContent = sFrom? (sFrom.slice(5)+" ~ "+sTo.slice(5)):"自定义区间";
+    $("#s-week").value="";
+    Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
+    renderStats();
+    rFrom=""; rTo="";
+    return;
+  }
+  $("#f-range").textContent=rangeLabel();
   if(rFrom) $("#f-time").value="";
   page=60; renderList();
 };
-$("#f-range").onclick=openCal;
+$("#f-range").onclick=function(){ openCal("list"); };
+$("#s-range").onclick=function(){ openCal("stats"); };
+$("#s-week").onchange=function(){
+  var w=this.value;
+  if(!w){ sFrom=""; sTo=""; renderStats(); return; }
+  var n=parseInt(w.replace(/\D/g,""),10)||1;
+  sFrom=weekStartDate(n); sTo=addDays(sFrom,6);
+  $("#s-range").textContent=sFrom.slice(5)+" ~ "+sTo.slice(5);
+  Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
+  renderStats();
+};
 function quickRange(n){
   rFrom=daysAgo(n); rTo=today(); $("#f-time").value="";
   $("#f-range").textContent=rangeLabel(); page=60; renderList();
@@ -913,13 +960,94 @@ $("#f-sort").onclick=function(){ desc=!desc; this.textContent=desc?"最新在前
 
 /* ---- 统计 ---- */
 var range=0, dim="teacher", sk="count", sd=-1, gran="month", aggExpand=false;
+var sFrom="", sTo="";
+var PAL=["#d1476b","#e8849f","#f0b3c2","#7e6b8f","#b0a0bd","#5a8f8a","#9dc3bf","#c9a227"];
+
+function weekStartDate(n){
+  var t=Date.UTC(2025,1,17)+(n-1)*6048e5;
+  var d=new Date(t);
+  return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate());
+}
+function addDays(ds,n){
+  var t=Date.parse(ds+"T00:00:00Z")+n*864e5, d=new Date(t);
+  return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate());
+}
 function inR(r){
-  if(!range) return true;
-  var d=new Date(r.date+"T00:00:00"); if(isNaN(d)) return false;
-  return (Date.now()-d.getTime())/86400000<=range;
+  if(sFrom&&r.date<sFrom) return false;
+  if(sTo&&r.date>sTo) return false;
+  if(!sFrom&&!sTo&&range){
+    var d=new Date(r.date+"T00:00:00"); if(isNaN(d)) return false;
+    return (Date.now()-d.getTime())/86400000<=range;
+  }
+  return true;
+}
+function statLabel(){
+  if(sFrom||sTo) return "范围："+(sFrom||"最早")+" 至 "+(sTo||"至今");
+  if(!range) return "范围：全部记录";
+  return "范围：最近 "+range+" 天";
+}
+function renderWeekSel(){
+  var s=$("#s-week"), keep=s.value;
+  var ws={}; records.forEach(function(r){ var w=r.week||weekOf(r.date); if(w) ws[w]=1; });
+  var list=Object.keys(ws).sort(function(a,b){
+    return (parseInt(b.replace(/\D/g,""),10)||0)-(parseInt(a.replace(/\D/g,""),10)||0);
+  });
+  s.innerHTML=""; s.appendChild(new Option("按周查看",""));
+  list.forEach(function(w){ s.appendChild(new Option(w,w)); });
+  s.value=keep;
+}
+/* ---- SVG 图表 ---- */
+function svgBars(data,h2){
+  if(!data.length) return '<div class="empty">这段时间没有记录</div>';
+  var W=Math.max(300,data.length*34), H=h2||150, pad=22;
+  var max=Math.max.apply(null,data.map(function(d){return d.v;}).concat([1]));
+  var bw=(W-pad*2)/data.length;
+  var out='<svg viewBox="0 0 '+W+' '+(H+34)+'" width="100%" style="max-width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">';
+  data.forEach(function(d,i){
+    var bh=Math.round(d.v/max*(H-pad));
+    var x=pad+i*bw+bw*0.16, w=bw*0.68, y=H-bh;
+    out+='<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+w.toFixed(1)+'" height="'+bh+'" rx="3" fill="var(--accent)" opacity="'+(0.55+0.45*d.v/max).toFixed(2)+'"/>';
+    out+='<text x="'+(x+w/2).toFixed(1)+'" y="'+(y-5)+'" font-size="10" text-anchor="middle" fill="var(--muted)">'+d.v+'</text>';
+    out+='<text x="'+(x+w/2).toFixed(1)+'" y="'+(H+16)+'" font-size="9" text-anchor="middle" fill="var(--muted)">'+d.l+'</text>';
+  });
+  out+='</svg>';
+  return '<div style="overflow-x:auto">'+out+'</div>';
+}
+function svgPie(items){
+  var tot=items.reduce(function(a,b){return a+b.v;},0);
+  if(!tot) return '<div class="empty">这段时间没有记录</div>';
+  var cx=80,cy=80,r=66,ir=38, a0=-Math.PI/2, out='';
+  items.forEach(function(it,i){
+    var a1=a0+it.v/tot*Math.PI*2;
+    var big=(a1-a0)>Math.PI?1:0;
+    function pt(a,rad){ return [(cx+rad*Math.cos(a)).toFixed(2),(cy+rad*Math.sin(a)).toFixed(2)]; }
+    var p1=pt(a0,r),p2=pt(a1,r),p3=pt(a1,ir),p4=pt(a0,ir);
+    out+='<path d="M'+p1+' A'+r+' '+r+' 0 '+big+' 1 '+p2+' L'+p3+' A'+ir+' '+ir+' 0 '+big+' 0 '+p4+' Z" fill="'+PAL[i%PAL.length]+'"/>';
+    a0=a1;
+  });
+  var svg='<svg viewBox="0 0 160 160" width="150" height="150" xmlns="http://www.w3.org/2000/svg">'+out+
+    '<text x="80" y="76" font-size="20" font-weight="700" text-anchor="middle" fill="var(--text)">'+tot+'</text>'+
+    '<text x="80" y="94" font-size="10" text-anchor="middle" fill="var(--muted)">节</text></svg>';
+  var lg='<div style="flex:1;min-width:0">';
+  items.forEach(function(it,i){
+    lg+='<div class="line"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'
+      +PAL[i%PAL.length]+';margin-right:6px"></i>'+it.n+'</span><span>'+it.v+' · '+Math.round(it.v/tot*100)+'%</span></div>';
+  });
+  lg+='</div>';
+  return '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+svg+lg+'</div>';
+}
+function dimKey(r){
+  if(dim==="card"){
+    var b=billMap[r.id];
+    if(b==="self") return "单独付费";
+    if(!b) return "未登记";
+    var c=cardById(b); return c? c.name:"未登记";
+  }
+  return r[dim]||"（空）";
 }
 function renderStats(){
-  renderPass();
+  renderPass(); renderWeekSel();
+  $("#s-label").textContent=statLabel();
   var rs=records.filter(inR);
   var lv=rs.filter(function(r){return r.level>0;});
   var avg=lv.length? lv.reduce(function(a,r){return a+r.level;},0)/lv.length:0;
@@ -929,17 +1057,38 @@ function renderStats(){
     weeks=Math.max(1,(t1-t0)/6048e5);
   }
   var k=$("#kpis"); k.innerHTML="";
-  [[rs.length,"课数"],[uniqIn(rs,"teacher"),"老师"],[avg?avg.toFixed(2):"–","平均难度"],[(rs.length/weeks).toFixed(1),"节/周"]]
+  [[rs.length,"课数"],[uniqIn(rs,"teacher"),"老师"],[avg?(avg.toFixed(2)+"★"):"–","平均难度"],[(rs.length/weeks).toFixed(1),"节/周"]]
   .forEach(function(p){ var c=el("div","kpi"); c.appendChild(el("b",null,p[0])); c.appendChild(el("span",null,p[1])); k.appendChild(c); });
 
+  /* 趋势 */
+  var tg={};
+  rs.forEach(function(r){
+    var key = gran==="week"? (r.week||weekOf(r.date)) : gran==="day"? r.date.slice(5) : r.date.slice(0,7);
+    tg[key]=(tg[key]||0)+1;
+  });
+  var keys=Object.keys(tg);
+  if(gran==="week") keys.sort(function(a,b){ return (parseInt(a.replace(/\D/g,""),10)||0)-(parseInt(b.replace(/\D/g,""),10)||0); });
+  else keys.sort();
+  keys=keys.slice(-40);
+  $("#trend").innerHTML=svgBars(keys.map(function(x){
+    return {l: gran==="week"? x.replace("第","").replace("周",""):(gran==="month"? x.slice(2):x), v:tg[x]};
+  }));
+
+  /* 构成 */
   var g={};
   rs.forEach(function(r){
-    var key=r[dim]||"（空）";
+    var key=dimKey(r);
     if(!g[key]) g[key]={name:key,count:0,s:0,n:0,last:""};
     g[key].count++; if(r.level>0){g[key].s+=r.level;g[key].n++;}
     if(r.date>g[key].last) g[key].last=r.date;
   });
   var rows=Object.keys(g).map(function(x){var o=g[x];o.avg=o.n?o.s/o.n:0;return o;});
+  var byCount=rows.slice().sort(function(a,b){ return b.count-a.count; });
+  var pieItems=byCount.slice(0,6).map(function(o){ return {n:o.name,v:o.count}; });
+  var restSum=byCount.slice(6).reduce(function(a,o){ return a+o.count; },0);
+  if(restSum) pieItems.push({n:"其他 "+(byCount.length-6)+" 项",v:restSum});
+  $("#pie").innerHTML=svgPie(pieItems);
+
   rows.sort(function(a,b){
     var x = sk==="count"?a.count-b.count : sk==="avg"?a.avg-b.avg : (a.last<b.last?-1:a.last>b.last?1:0);
     return x===0? a.count-b.count : x*sd;
@@ -949,11 +1098,11 @@ function renderStats(){
   var max=Math.max.apply(null,[1].concat(rows.map(function(r){return r.count;})));
   var t=$("#agg"); t.innerHTML="";
   var hr=t.insertRow();
-  [["名称",null],["课数","count"],["平均难度","avg"],["最近","last"]].forEach(function(h){
-    var th=document.createElement("th"); th.textContent=h[0];
-    if(h[1]){
-      if(sk===h[1]){ th.className="act"; th.textContent=h[0]+(sd<0?" ↓":" ↑"); }
-      th.onclick=function(){ if(sk===h[1]) sd=-sd; else {sk=h[1];sd=-1;} renderStats(); };
+  [["名称",null],["课数","count"],["平均难度","avg"],["最近","last"]].forEach(function(hh){
+    var th=document.createElement("th"); th.textContent=hh[0];
+    if(hh[1]){
+      if(sk===hh[1]){ th.className="act"; th.textContent=hh[0]+(sd<0?" ↓":" ↑"); }
+      th.onclick=function(){ if(sk===hh[1]) sd=-sd; else {sk=hh[1];sd=-1;} renderStats(); };
     }
     hr.appendChild(th);
   });
@@ -963,10 +1112,9 @@ function renderStats(){
     c1.appendChild(document.createTextNode(o.name));
     var b=el("div","bar"); b.style.width=Math.round(o.count/max*100)+"%"; c1.appendChild(b);
     tr.insertCell().textContent=o.count;
-    tr.insertCell().textContent=o.n?o.avg.toFixed(2):"–";
+    tr.insertCell().textContent=o.n?(o.avg.toFixed(2)+"★"):"–";
     tr.insertCell().textContent=o.last.slice(5);
   });
-
   var ab=$("#agg-more");
   if(ab){
     ab.innerHTML="";
@@ -980,30 +1128,204 @@ function renderStats(){
       ab.appendChild(cb);
     }
   }
-  var mg={};
-  rs.forEach(function(r){
-    var m = gran==="week" ? (r.week||weekOf(r.date)||"—") : r.date.slice(0,7);
-    mg[m]=(mg[m]||0)+1;
+
+  /* 难度分布 */
+  var lc=[0,0,0,0,0];
+  rs.forEach(function(r){ lc[r.level||0]++; });
+  $("#lvbar").innerHTML=svgBars([
+    {l:"未评",v:lc[0]},{l:"★1",v:lc[1]},{l:"★2",v:lc[2]},{l:"★3",v:lc[3]},{l:"★4",v:lc[4]}
+  ],110);
+
+  renderInsights(rs);
+}
+var insSeed=0;
+function pickOne(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function periodOf(){
+  /* 当前范围的起止，用于算上一个等长周期 */
+  var all=records.map(function(r){return r.date;});
+  if(!all.length) return null;
+  var lo=sFrom||"", hi=sTo||"";
+  if(!lo&&!hi){
+    if(!range) return null;
+    hi=today(); lo=addDays(hi,-range+1);
+  } else {
+    lo=lo||all[0]; hi=hi||all[all.length-1];
+  }
+  var days=Math.max(1,Math.round((Date.parse(hi+"T00:00:00Z")-Date.parse(lo+"T00:00:00Z"))/864e5)+1);
+  return {lo:lo,hi:hi,days:days,plo:addDays(lo,-days),phi:addDays(lo,-1)};
+}
+function buildInsights(rs){
+  var out=[];
+  if(!rs.length){
+    return [pickOne(["这段时间没有记录，换个范围看看？","这个区间是空的，试试放宽时间。"])];
+  }
+  var p=periodOf();
+  var avgOf=function(a){ var x=a.filter(function(r){return r.level>0;});
+    return x.length? x.reduce(function(s,r){return s+r.level;},0)/x.length:0; };
+
+  /* 与上一个等长周期对比 */
+  if(p){
+    var prev=records.filter(function(r){ return r.date>=p.plo&&r.date<=p.phi; });
+    if(prev.length>=3&&rs.length>=3){
+      var diff=rs.length-prev.length;
+      var pct=Math.round(Math.abs(diff)/prev.length*100);
+      if(diff>0&&pct>=15) out.push(pickOne([
+        "比上一个同样长的周期多上了 "+diff+" 节（+"+pct+"%），节奏明显起来了。",
+        "课量比上个周期涨了 "+pct+"%，这段时间挺投入的。",
+        "跟前一个周期比多出 "+diff+" 节，状态在往上走。"]));
+      else if(diff<0&&pct>=15) out.push(pickOne([
+        "比上一个周期少了 "+Math.abs(diff)+" 节，最近节奏慢了一些。",
+        "课量比前一个周期降了 "+pct+"%，可能是忙别的去了。",
+        "这段时间上得比上个周期少 "+Math.abs(diff)+" 节，缓一缓也正常。"]));
+      else out.push(pickOne([
+        "跟上一个周期基本持平，节奏很稳。",
+        "课量和前一个周期差不多，保持得不错。"]));
+      var a1=avgOf(rs), a0=avgOf(prev);
+      if(a1&&a0){
+        if(a1-a0>=0.25) out.push(pickOne([
+          "平均难度从 "+a0.toFixed(2)+" 升到 "+a1.toFixed(2)+"，开始挑更难的课了。",
+          "选课难度比上个周期高了，均值 "+a0.toFixed(2)+" → "+a1.toFixed(2)+"。"]));
+        else if(a0-a1>=0.25) out.push(pickOne([
+          "平均难度从 "+a0.toFixed(2)+" 降到 "+a1.toFixed(2)+"，这阵子偏轻松向。",
+          "难度均值回落到 "+a1.toFixed(2)+"，适合打基础。"]));
+      }
+    }
+  }
+
+  /* 频率 */
+  var t0=Date.parse(rs[0].date+"T00:00:00Z"), t1=Date.parse(rs[rs.length-1].date+"T00:00:00Z");
+  var wks=Math.max(1,(t1-t0)/6048e5);
+  var perW=rs.length/wks;
+  if(wks>=2){
+    if(perW>=6) out.push(pickOne([
+      "平均每周 "+perW.toFixed(1)+" 节，这个频率相当高了。",
+      "一周能上 "+perW.toFixed(1)+" 节，练得很密。"]));
+    else if(perW>=3) out.push(pickOne([
+      "平均每周 "+perW.toFixed(1)+" 节，是很能坚持的节奏。",
+      "稳定在一周 "+perW.toFixed(1)+" 节左右。"]));
+    else out.push(pickOne([
+      "平均每周 "+perW.toFixed(1)+" 节，按自己的节奏来就好。",
+      "一周 "+perW.toFixed(1)+" 节，细水长流也是一种练法。"]));
+  }
+
+  /* 连续周 */
+  var ws={}; rs.forEach(function(r){ ws[parseInt((r.week||weekOf(r.date)).replace(/\D/g,""),10)||0]=1; });
+  var nums=Object.keys(ws).map(Number).sort(function(a,b){return a-b;});
+  var best=1,cur=1;
+  for(var i=1;i<nums.length;i++){ if(nums[i]===nums[i-1]+1){cur++; if(cur>best)best=cur;} else cur=1; }
+  if(best>=4) out.push(pickOne([
+    "最长连着 "+best+" 周都有课，没断过。",
+    "有过 "+best+" 周不间断的记录，挺难得。"]));
+
+  /* 单周峰值 */
+  var wc={}; rs.forEach(function(r){ var w=r.week||weekOf(r.date); wc[w]=(wc[w]||0)+1; });
+  var topW="",topN=0;
+  Object.keys(wc).forEach(function(w){ if(wc[w]>topN){topN=wc[w];topW=w;} });
+  if(topN>=8) out.push(pickOne([
+    topW+"是这段时间最猛的一周，上了 "+topN+" 节。",
+    "峰值出现在"+topW+"，一周 "+topN+" 节。"]));
+
+  /* 新老师 / 新舞种 */
+  if(p){
+    var before={}, beforeS={};
+    records.forEach(function(r){ if(r.date<p.lo){ if(r.teacher)before[r.teacher]=1; if(r.style)beforeS[r.style]=1; } });
+    var newT=[], newS=[];
+    rs.forEach(function(r){
+      if(r.teacher&&!before[r.teacher]&&newT.indexOf(r.teacher)<0) newT.push(r.teacher);
+      if(r.style&&!beforeS[r.style]&&newS.indexOf(r.style)<0) newS.push(r.style);
+    });
+    if(newT.length) out.push(pickOne([
+      "这段时间试了 "+newT.length+" 位没上过的老师："+newT.slice(0,3).join("、")+(newT.length>3?" 等":"")+"。",
+      "新开了 "+newT.length+" 个老师的课，"+newT.slice(0,2).join("、")+" 都是第一次。"]));
+    if(newS.length) out.push(pickOne([
+      "舞种上有新尝试："+newS.slice(0,3).join("、")+"。",
+      "第一次跳了"+newS[0]+"，愿意换风格是好事。"]));
+  }
+
+  /* 主力老师 */
+  var tc={}; rs.forEach(function(r){ if(r.teacher) tc[r.teacher]=(tc[r.teacher]||0)+1; });
+  var tn=Object.keys(tc).sort(function(a,b){return tc[b]-tc[a];});
+  if(tn.length&&tc[tn[0]]>=5){
+    var share=Math.round(tc[tn[0]]/rs.length*100);
+    if(share>=50) out.push(pickOne([
+      tn[0]+"一个人占了 "+share+"%，几乎是固定班底了。",
+      "有一半以上的课在"+tn[0]+"那儿（"+share+"%），要不要换换口味？"]));
+    else out.push(pickOne([
+      "上得最多的是"+tn[0]+"，"+tc[tn[0]]+" 节。",
+      tn[0]+"的课占了 "+share+"%，是这阵子的主力。"]));
+  }
+  if(tn.length>=8) out.push(pickOne([
+    "这段时间上了 "+tn.length+" 位老师的课，涉猎挺广。",
+    "换了 "+tn.length+" 个老师，不挑食。"]));
+
+  /* 基本功比例 */
+  var base=rs.filter(function(r){ return (r.style||"").indexOf("基本功")>=0||(r.style||"").indexOf("基础")>=0; }).length;
+  if(rs.length>=15){
+    var bp=Math.round(base/rs.length*100);
+    if(base===0) out.push(pickOne([
+      "这段时间全是成品舞，一节基本功都没有。",
+      "没排基本功的课，想突破瓶颈的话可以加一点。"]));
+    else if(bp<10) out.push("基本功只占 "+bp+"%，比例偏低。");
+    else if(bp>=20) out.push(pickOne([
+      "基本功占到 "+bp+"%，底子在往扎实里打。",
+      "有 "+base+" 节基本功，打基础的意识挺强。"]));
+  }
+
+  /* 难度构成 */
+  var hard=rs.filter(function(r){return r.level>=3;}).length;
+  if(hard>=5) out.push(pickOne([
+    "其中 "+hard+" 节是 3 星以上的硬课。",
+    "啃下了 "+hard+" 节高难度的。"]));
+  var unrated=rs.filter(function(r){return !r.level;}).length;
+  if(unrated>=Math.max(5,rs.length*0.3)) out.push("有 "+unrated+" 节没打难度，补一下统计会更准。");
+
+  /* 里程碑 */
+  var total=records.length;
+  var mile=[100,200,300,400,500,600,700,800,900,1000];
+  for(var j=0;j<mile.length;j++){
+    if(total>=mile[j]&&total<mile[j]+8){
+      out.push(pickOne(["刚跨过第 "+mile[j]+" 节课，值得记一笔。","总课数破 "+mile[j]+" 了。"]));
+      break;
+    }
+  }
+
+  /* 卡的提醒 */
+  liveCards().forEach(function(c){
+    if(c.kind!=="count"||!c.total) return;
+    var lf=cardLeft[c.id];
+    if(lf!=null&&lf>0&&lf<=3) out.push(c.name+"只剩 "+lf+" 次了，该考虑续卡。");
   });
-  var ms=Object.keys(mg).sort(function(a,b){
-    if(gran==="week"){ return (parseInt(b.replace(/\D/g,""),10)||0)-(parseInt(a.replace(/\D/g,""),10)||0); }
-    return a<b?1:-1;
-  }).slice(0,gran==="week"?26:18);
-  var mt=$("#months"); mt.innerHTML="";
-  var mh=mt.insertRow(); [gran==="week"?"周次":"月份","课数",""].forEach(function(h){var th=document.createElement("th");th.textContent=h;mh.appendChild(th);});
-  var mx=Math.max.apply(null,[1].concat(ms.map(function(m){return mg[m];})));
-  ms.forEach(function(m){
-    var tr=mt.insertRow();
-    tr.insertCell().textContent=m;
-    tr.insertCell().textContent=mg[m];
-    var c=tr.insertCell(); c.style.width="46%";
-    var b=el("div","bar"); b.style.width=Math.round(mg[m]/mx*100)+"%"; c.appendChild(b);
+  liveCards().forEach(function(c){
+    if(!c.end||c.price<=0||c.unit<=0) return;
+    if(cardStatus(c).t!=="使用中") return;
+    var u=cardUsage(c), need=Math.ceil(c.price/c.unit);
+    var daysLeft=Math.round((Date.parse(c.end+"T00:00:00Z")-Date.now())/864e5);
+    if(u.n>=need) out.push(c.name+"已经回本，每节摊到 ¥"+u.per.toFixed(0)+"。");
+    else if(daysLeft>0&&daysLeft<60) out.push(c.name+"还有 "+daysLeft+" 天到期，离回本差 "+(need-u.n)+" 节。");
+  });
+
+  return out;
+}
+function renderInsights(rs){
+  var box=$("#insights"); if(!box) return;
+  var all=buildInsights(rs);
+  box.innerHTML="";
+  if(!all.length){ box.appendChild(el("div","empty","数据还不够，多记几节课就有了")); return; }
+  /* 打乱后取 4 条 */
+  var arr=all.slice();
+  for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=arr[i];arr[i]=arr[j];arr[j]=t; }
+  arr.slice(0,4).forEach(function(s){
+    var d=el("div","ins");
+    d.appendChild(el("span","dotm","·"));
+    d.appendChild(el("span",null,s));
+    box.appendChild(d);
   });
 }
 function uniqIn(rs,f){ var m={}; rs.forEach(function(r){ if(r[f]) m[r[f]]=1; }); return Object.keys(m).length; }
 Array.prototype.forEach.call($("#range").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#range").children,function(x){x.className="";});
-    b.className="on"; range=parseInt(b.dataset.r,10); renderStats(); };
+    b.className="on"; range=parseInt(b.dataset.r,10); sFrom=""; sTo="";
+    $("#s-week").value=""; $("#s-range").textContent="自定义区间"; renderStats(); };
 });
 Array.prototype.forEach.call($("#dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#dim").children,function(x){x.className="";});
@@ -1392,25 +1714,13 @@ function renderCards(){
     var hd2=el("button","obtn"+(isHidden("card",c.id)?" act":""),isHidden("card",c.id)?"◇":"◆");
     hd2.onclick=function(){ toggleHidden("card",c.id); renderCards(); billChips(); };
     var ed=el("button","obtn","✎"); ed.onclick=function(){ openCardDlg(c); };
-    var up=el("button","obtn","↑"), dn=el("button","obtn","↓");
-    function reorder(dir){
-      var os=allCardsSorted();
-      var i=os.map(function(x){return x.id;}).indexOf(c.id);
-      if(i<0) return;
-      var j=i+dir; if(j<0||j>=os.length) return;
-      var tmp=os[i]; os[i]=os[j]; os[j]=tmp;
-      os.forEach(function(x,k){ x.ord=k; x.updated_at=Date.now(); });
-      saveCards(); pushCards(os); computeBills(); renderCards(); renderPass();
-    }
-    up.onclick=function(){ reorder(-1); };
-    dn.onclick=function(){ reorder(1); };
     var rm=el("button","obtn","✕");
     rm.onclick=function(){
       if(!confirm("删除「"+c.name+"」？上课记录不受影响。")) return;
       c.deleted=true; c.updated_at=Date.now();
       saveCards(); pushCards([c]); computeBills(); renderCards(); renderPass(); billChips();
     };
-    row.appendChild(dh); row.appendChild(t); row.appendChild(hd2); row.appendChild(ed); row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
+    row.appendChild(dh); row.appendChild(t); row.appendChild(hd2); row.appendChild(ed); row.appendChild(rm);
     box.appendChild(row);
   });
   if(!box.dataset.sortable){
@@ -1427,35 +1737,6 @@ function renderCards(){
 }
 function clearCfg(){ SB=null; try{ localStorage.removeItem(SBKEY); }catch(e){}
   $("#sb-url").value=""; $("#sb-key").value=""; setSync("已断开云端，改为仅本地存储");
-}
-/* 一次性：导入的原始数据难度整体 +1（0→1,1→2,2→3,3→4） */
-function shiftLegacy(){
-  if(!confirm("把飞书导入的原始记录难度整体 +1？\n你自己新加的记录不受影响，且只能执行一次。")) return;
-  if(!sbOn()){ doShift(false); return; }
-  setSync("检查中…");
-  pull().then(function(rows){
-    var done=rows.some(function(r){ return r.id==="_shift_v1"; });
-    if(done){ setSync("该操作已执行过，未重复应用"); toast("已执行过，跳过"); return; }
-    doShift(true);
-  }).catch(function(e){ setSync("检查失败："+e.message); });
-}
-function doShift(markCloud){
-  var touched={}, changed=[], n=0;
-  Object.keys(years).forEach(function(y){
-    (years[y]||[]).forEach(function(r){
-      if(String(r.id).charAt(0)!=="s") return;
-      var v=Math.min(4,(r.level||0)+1);
-      if(v!==r.level){ r.level=v; r.updated_at=Date.now(); touched[y]=1; changed.push(r); n++; }
-    });
-  });
-  Object.keys(touched).forEach(function(y){ writeYear(y); });
-  flatten(); cache(); renderAll();
-  if(changed.length&&sbOn()){
-    var batch=changed.slice();
-    if(markCloud) batch.push({id:"_shift_v1",date:null,deleted:true,updated_at:Date.now()});
-    push(batch).then(function(){ setSync("已提升 "+n+" 条并同步云端"); });
-  }
-  toast("已提升 "+n+" 条");
 }
 Array.prototype.forEach.call($("#theme").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#theme").children,function(x){x.className="";});
@@ -1499,7 +1780,7 @@ function renderAll(){
 $("#sb-save").onclick=saveCfg;
 $("#sb-sync").onclick=syncNow;
 $("#sb-clear").onclick=clearCfg;
-$("#sb-shift").onclick=shiftLegacy;
+$("#ins-more").onclick=function(){ renderInsights(records.filter(inR)); };
 $("#card-add").onclick=function(){ openCardDlg(null); };
 $("#cd-save").onclick=saveCardDlg;
 $("#cd-cancel").onclick=function(){ $("#cdlg").close(); };
