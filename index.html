@@ -164,6 +164,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <div class="sel"><select id="f-teacher"><option value="">全部老师</option></select></div>
     </div>
     <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="sel"><select id="f-card"><option value="">全部用卡</option></select></div>
+    </div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
       <div class="sel"><select id="f-time"><option value="">全部时间</option></select></div>
     </div>
     <div class="row" style="gap:8px;margin-bottom:8px">
@@ -557,9 +560,14 @@ function filtered(){
   var fs=$("#f-studio").value,fy=$("#f-style").value,ft=$("#f-teacher").value;
   var kw=$("#f-kw").value.trim().toLowerCase();
   var ft2=$("#f-time").value;
-  var dFrom=rFrom, dTo=rTo;
+  var dFrom=rFrom, dTo=rTo, fc=$("#f-card").value;
   var rs=records.filter(function(r){
     if(ft2&&r.date.indexOf(ft2)!==0) return false;
+    if(fc){
+      var bb=billMap[r.id]||"";
+      if(fc==="__none"){ if(bb) return false; }
+      else if(bb!==fc) return false;
+    }
     if(dFrom&&r.date<dFrom) return false;
     if(dTo&&r.date>dTo) return false;
     if(fs&&r.studio!==fs) return false;
@@ -752,6 +760,15 @@ function renderFilters(){
     s.value=k;
   });
   chips("studio"); chips("style"); chips("teacher"); billChips();
+  (function(){
+    var s=$("#f-card"); if(!s) return;
+    var keep=s.value; s.innerHTML="";
+    s.appendChild(new Option("全部用卡",""));
+    allCardsSorted().forEach(function(c){ s.appendChild(new Option(c.name,c.id)); });
+    s.appendChild(new Option("单独付费","self"));
+    s.appendChild(new Option("未登记","__none"));
+    s.value=keep;
+  })();
 }
 /* 设置页：调整顺序 */
 var odim="teacher";
@@ -880,7 +897,7 @@ Array.prototype.forEach.call($("#ord-dim").children,function(b){
   b.onclick=function(){ Array.prototype.forEach.call($("#ord-dim").children,function(x){x.className="";});
     b.className="on"; odim=b.dataset.d; renderOrder(); };
 });
-["#f-studio","#f-style","#f-teacher","#f-time"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
+["#f-studio","#f-style","#f-teacher","#f-time","#f-card"].forEach(function(s){ $(s).onchange=function(){page=60;renderList();}; });
 function daysAgo(n){ var d=new Date(Date.now()-n*86400000); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
 /* ---- 单日历区间选择 ---- */
 var rFrom="", rTo="", calY=0, calM=0, calTarget="list";
@@ -961,6 +978,7 @@ $("#f-clear").onclick=function(){
   rFrom=""; rTo=""; $("#f-range").textContent=rangeLabel();
   $("#f-time").value="";
   $("#f-studio").value=""; $("#f-style").value=""; $("#f-teacher").value=""; $("#f-kw").value="";
+  $("#f-card").value="";
   page=60; renderList();
 };
 $("#f-kw").oninput=function(){ page=60; renderList(); };
@@ -1717,7 +1735,7 @@ function renderCards(){
     t.appendChild(document.createTextNode(c.name));
     var st2=cardStatus(c);
     t.appendChild(el("span","badge "+st2.cls,st2.t));
-    t.appendChild(el("small",null,"  ¥"+c.price+" · "+kindName(c.kind)+" · "+u.n+" 节"));
+    t.appendChild(el("small",null,"  ¥"+c.price+" · "+kindName(c.kind)+" · 共 "+u.n+" 节"));
     var hd2=el("button","obtn"+(isHidden("card",c.id)?" act":""),isHidden("card",c.id)?"◇":"◆");
     hd2.onclick=function(){ toggleHidden("card",c.id); renderCards(); billChips(); };
     var ed=el("button","obtn","✎"); ed.onclick=function(){ openCardDlg(c); };
