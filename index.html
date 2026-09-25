@@ -636,12 +636,11 @@ function billChips(){
   var box=$("#c-bill"); if(!box) return; box.innerHTML="";
   var d=$("#i-date").value||today();
   var main=[], rest=[];
-  orderedCards().concat(liveCards().filter(function(c){ return c.kind==="once"||!c.start; }))
-    .forEach(function(c){
-      if(c.id===pick.bill) main.push(c);
-      else if(isHidden("card",c.id)) rest.push(c);
-      else main.push(c);
-    });
+  allCardsSorted().forEach(function(c){
+    if(c.id===pick.bill) main.push(c);
+    else if(isHidden("card",c.id)) rest.push(c);
+    else main.push(c);
+  });
   var show=billExpand? main.concat(rest):main;
   show.forEach(function(c){
     var b=el("button","chip"+(pick.bill===c.id?" on":""),c.name); b.type="button";
@@ -1191,13 +1190,15 @@ function cardRow(c){
 function pushCards(list){ if(sbOn()&&list.length) push(list.map(cardRow)); }
 
 /* 自动匹配：按优先级顺序依次尝试，额度用完自动落到下一张卡 */
+function allCardsSorted(){
+  return liveCards().slice().sort(function(a,b){
+    var ao=(a.ord==null? 9999:a.ord), bo=(b.ord==null? 9999:b.ord);
+    if(ao!==bo) return ao-bo;
+    return (a.start||"")<(b.start||"")? -1:1;
+  });
+}
 function orderedCards(){
-  return liveCards().filter(function(c){ return c.kind!=="once" && c.start; })
-    .sort(function(a,b){
-      var d=(a.ord||0)-(b.ord||0);
-      if(d) return d;
-      return a.start<b.start? -1:1;
-    });
+  return allCardsSorted().filter(function(c){ return c.kind!=="once" && c.start; });
 }
 var billMap={}, cardLeft={};
 function qtyOf(r){ return Math.max(1,parseInt(r.qty,10)||1); }
@@ -1253,11 +1254,11 @@ function cardStatus(c){
   if(c.kind==="once") return {t:"单次消费",cls:"s-once",rank:3};
   if(c.kind==="count" && c.total>0){
     var left=(cardLeft[c.id]!=null? cardLeft[c.id]:Math.max(0,c.total-u.q));
-    if(left<=0) return {t:"已结束",cls:"s-done",rank:4};
+    if(left<=0) return {t:"已使用",cls:"s-done",rank:4};
   }
   if(!c.start) return {t:"未开卡",cls:"s-idle",rank:2};
   if(d<c.start) return {t:"未开卡",cls:"s-idle",rank:2};
-  if(c.end && d>c.end) return {t:"已结束",cls:"s-done",rank:4};
+  if(c.end && d>c.end) return {t:"已使用",cls:"s-done",rank:4};
   return {t:"使用中",cls:"s-live",rank:1};
 }
 function kindName(k){
@@ -1377,7 +1378,7 @@ function saveCardDlg(){
 function renderCards(){
   var box=$("#card-list"); if(!box) return;
   box.innerHTML="";
-  var live=orderedCards().concat(liveCards().filter(function(c){ return c.kind==="once"||!c.start; }));
+  var live=allCardsSorted();
   if(!live.length){ box.appendChild(el("div","empty","还没有卡")); return; }
   live.forEach(function(c){
     var u=cardUsage(c);
@@ -1393,7 +1394,7 @@ function renderCards(){
     var ed=el("button","obtn","✎"); ed.onclick=function(){ openCardDlg(c); };
     var up=el("button","obtn","↑"), dn=el("button","obtn","↓");
     function reorder(dir){
-      var os=orderedCards();
+      var os=allCardsSorted();
       var i=os.map(function(x){return x.id;}).indexOf(c.id);
       if(i<0) return;
       var j=i+dir; if(j<0||j>=os.length) return;
@@ -1420,7 +1421,7 @@ function renderCards(){
         var c2=cardById(id);
         if(c2&&c2.ord!==k){ c2.ord=k; c2.updated_at=Date.now(); changed.push(c2); }
       });
-      if(changed.length){ saveCards(); pushCards(changed); computeBills(); renderPass(); toast("顺序已保存"); }
+      if(changed.length){ saveCards(); pushCards(changed); computeBills(); renderCards(); renderPass(); toast("顺序已保存"); }
     });
   }
 }
