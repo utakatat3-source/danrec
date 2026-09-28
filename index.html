@@ -146,6 +146,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .lgd-n{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lgd-n i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;flex:0 0 auto}
 .lgd-v{flex:0 0 auto;color:var(--muted);font-weight:600;white-space:nowrap}
+.dayord{display:flex;align-items:stretch;gap:8px;height:46px}
+.dayord button{width:64px;flex:0 0 64px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--text);font-size:17px;line-height:1}
+.dayord button:disabled{opacity:.35}
+.dayord span{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--muted);border:1px solid var(--line);border-radius:10px}
 .hidden{display:none!important}
 </style>
 </head>
@@ -195,15 +201,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
     <div class="field"><label>用哪张卡</label><div class="chips" id="c-bill"></div><div class="note" id="bill-tip" style="margin-top:6px"></div></div>
-    <div class="row">
-      <div class="field hidden" id="dayord-wrap"><label>当天顺序</label>
-      <div class="row" style="gap:8px;align-items:center">
-        <button class="btn ghost" id="dayord-up" style="flex:0 0 auto;padding:10px 16px">↑</button>
-        <span id="dayord-txt" style="flex:1;text-align:center;font-size:14px;color:var(--muted)"></span>
-        <button class="btn ghost" id="dayord-dn" style="flex:0 0 auto;padding:10px 16px">↓</button>
+    <div class="field hidden" id="dayord-wrap"><label>当天顺序</label>
+      <div class="dayord">
+        <button type="button" id="dayord-up">↑</button>
+        <span id="dayord-txt"></span>
+        <button type="button" id="dayord-dn">↓</button>
       </div>
     </div>
-    <div class="field"><label>本节扣减</label><input type="number" id="i-qty" value="1" min="1" inputmode="numeric"></div>
+    <div class="row">
+      <div class="field"><label>本节扣减</label><input type="number" id="i-qty" value="1" min="1" inputmode="numeric"></div>
       <div class="field"><label>扣减单位</label><div class="sel"><select id="i-unit">
         <option value="次">次</option><option value="天">天</option>
       </select></div></div>
@@ -1547,27 +1553,43 @@ function allCardsSorted(){
 function orderedCards(){
   return allCardsSorted().filter(function(c){ return c.kind!=="once" && c.start; });
 }
-var billMap={}, cardLeft={};
+var billMap={}, cardLeft={}, cardEnd={}, cardDays={}, cardMonthDays={};
 function qtyOf(r){ return Math.max(1,parseInt(r.qty,10)||1); }
 function computeBills(){
   billMap={}; cardLeft={};
   var cs=orderedCards();
-  var left={}, wkUse={}, moUse={};
-  liveCards().forEach(function(c){ if(c.kind==="count") left[c.id]=(c.total>0? c.total:1e9); });
+  var left={}, wkUse={}, moUse={}, endOf={}, dayUse={}, moDay={};
+  liveCards().forEach(function(c){
+    if(c.kind==="count") left[c.id]=(c.total>0? c.total:1e9);
+    endOf[c.id]=c.end||""; dayUse[c.id]=0;
+  });
+  function isDay(r){ return (r.unit||"次")==="天"; }
   function consume(c,r){
     if(!c) return;
-    var q=qtyOf(r);
+    var q=qtyOf(r), mk=c.id+"|"+monthOf(r.date);
+    if(isDay(r)){
+      /* 扣天数：吃有效期 */
+      dayUse[c.id]=(dayUse[c.id]||0)+q;
+      moDay[mk]=(moDay[mk]||0)+q;
+      if(endOf[c.id]) endOf[c.id]=addDays(endOf[c.id],-q);
+      if(c.kind==="count") left[c.id]=(left[c.id]||0)-q;
+      return;
+    }
     if(c.kind==="count") left[c.id]=(left[c.id]||0)-q;
-    if(c.kind==="month"){ var k=c.id+"|"+monthOf(r.date); moUse[k]=(moUse[k]||0)+q; }
+    if(c.kind==="month") moUse[mk]=(moUse[mk]||0)+q;
     if(c.kind==="pass"){ var k2=c.id+"|"+(r.week||weekOf(r.date)); wkUse[k2]=(wkUse[k2]||0)+q; }
   }
   function fits(c,r){
-    var q=qtyOf(r);
+    var q=qtyOf(r), mk=c.id+"|"+monthOf(r.date);
     if(c.studio && c.studio!==r.studio) return false;
     if(r.date<c.start) return false;
-    if(c.end && r.date>c.end) return false;
+    if(endOf[c.id] && r.date>endOf[c.id]) return false;
     if(c.kind==="count" && (left[c.id]||0)<q) return false;
-    if(c.kind==="month" && c.limit>0 && (moUse[c.id+"|"+monthOf(r.date)]||0)+q>c.limit) return false;
+    if(isDay(r)) return true;            /* 扣天数只受有效期限制 */
+    if(c.kind==="month"){
+      if((moDay[mk]||0)>=30) return false;               /* 当月天数扣满，次数作废 */
+      if(c.limit>0 && (moUse[mk]||0)+q>c.limit) return false;
+    }
     if(c.kind==="pass" && c.limit>0 && (wkUse[c.id+"|"+(r.week||weekOf(r.date))]||0)+q>c.limit) return false;
     return true;
   }
@@ -1582,17 +1604,26 @@ function computeBills(){
     if(hit){ billMap[r.id]=hit.id; consume(hit,r); }
     else billMap[r.id]="";        /* 未匹配 = 未指定，不算单独付费 */
   });
-  liveCards().forEach(function(c){ if(c.kind==="count") cardLeft[c.id]=Math.max(0,left[c.id]); });
+  liveCards().forEach(function(c){
+    if(c.kind==="count") cardLeft[c.id]=Math.max(0,left[c.id]);
+    cardEnd[c.id]=endOf[c.id]||"";
+    cardDays[c.id]=dayUse[c.id]||0;
+    cardMonthDays[c.id]=moDay[c.id+"|"+monthOf(today())]||0;
+  });
 }
 function monthOf(d){ return (d||"").slice(0,7); }
 function cardUsage(c){
   var used=records.filter(function(r){ return billMap[r.id]===c.id; });
   var wk=weekOf(today()), mo=monthOf(today());
   function sum(a){ return a.reduce(function(s,r){ return s+qtyOf(r); },0); }
+  var byCnt=used.filter(function(r){ return (r.unit||"次")!=="天"; });
+  var byDay=used.filter(function(r){ return (r.unit||"次")==="天"; });
   return {
     n:used.length, q:sum(used),
-    week:sum(used.filter(function(r){ return (r.week||weekOf(r.date))===wk; })),
-    month:sum(used.filter(function(r){ return monthOf(r.date)===mo; })),
+    week:sum(byCnt.filter(function(r){ return (r.week||weekOf(r.date))===wk; })),
+    month:sum(byCnt.filter(function(r){ return monthOf(r.date)===mo; })),
+    monthDay:sum(byDay.filter(function(r){ return monthOf(r.date)===mo; })),
+    days:sum(byDay),
     per:used.length? c.price/used.length:0
   };
 }
@@ -1654,10 +1685,26 @@ function renderPass(){
       var m1=el("div","meter"),i1=el("i");
       i1.style.width=Math.min(100,Math.round(u.week/c.limit*100))+"%"; m1.appendChild(i1); w.appendChild(m1);
     }
-    if(c.kind==="month"&&c.limit>0&&active){
-      line("本月已约（"+monthOf(td)+"）",u.month+" / "+c.limit,u.month>=c.limit);
-      var m2=el("div","meter"),i2=el("i");
-      i2.style.width=Math.min(100,Math.round(u.month/c.limit*100))+"%"; m2.appendChild(i2); w.appendChild(m2);
+    if(c.kind==="month"){
+      var eff=cardEnd[c.id]||c.end||"";
+      if(c.end){
+        if(cardDays[c.id]>0){
+          line("到期日", eff+"（原 "+c.end+"，已扣 "+cardDays[c.id]+" 天）");
+        } else line("到期日", c.end);
+        if(eff){
+          var dl=Math.round((Date.parse(eff+"T00:00:00Z")-Date.parse(td+"T00:00:00Z"))/864e5);
+          line("剩余天数", (dl>0? dl:0)+" 天", dl<=30);
+        }
+      }
+      if(c.limit>0){
+        var mdFull=(cardMonthDays[c.id]||0)>=30;
+        var usedM=mdFull? c.limit:u.month;
+        line("本月次数（"+monthOf(td)+"）", usedM+" / "+c.limit+(mdFull?"（天数已扣满）":""), usedM>=c.limit);
+        var m2=el("div","meter"),i2=el("i");
+        i2.style.width=Math.min(100,Math.round(usedM/c.limit*100))+"%"; m2.appendChild(i2); w.appendChild(m2);
+        line("本月剩余", Math.max(0,c.limit-usedM)+" 次");
+      }
+      if(u.monthDay>0) line("本月已扣天数", u.monthDay+" 天");
     }
     if(c.kind==="count"&&c.total>0){
       line("已用 / 总次数",u.q+" / "+c.total,u.q>=c.total);
@@ -1665,7 +1712,7 @@ function renderPass(){
       i3.style.width=Math.min(100,Math.round(u.q/c.total*100))+"%"; m3.appendChild(i3); w.appendChild(m3);
       line("剩余",(cardLeft[c.id]!=null? cardLeft[c.id]:Math.max(0,c.total-u.q))+" 次");
     } else {
-      line("累计上课",u.n+" 节"+(u.q!==u.n? ("（扣 "+u.q+"）"):""));
+      line("累计上课",u.n+" 节"+(u.days>0? ("（其中扣天 "+u.days+" 天）"):""));
     }
     if(c.price>0){
       line("卡费","¥"+c.price);
