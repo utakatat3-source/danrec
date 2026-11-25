@@ -417,12 +417,22 @@ function weekOf(d){
 }
 
 /* ---- 存储：按年分块，一年一个文档 ---- */
+/* 同日顺序：seq 是登记顺序。旧版 seq 用 Date.now()%1e7，每约 2 小时 46 分就会绕回 0，
+   同一天登记的几节课会排错；新版用完整时间戳，且保证同一天内单调递增。
+   已有记录保留原 seq（包括手动调过的顺序），只修复之后的新登记。 */
+function cmpDateSeq(a,b){ return a.date<b.date?-1:a.date>b.date?1:((a.seq||0)-(b.seq||0)); }
+function nextSeq(d){
+  var m=0;
+  (years[yr(d)]||[]).forEach(function(r){ if(r.date===d && (r.seq||0)>m) m=r.seq||0; });
+  var now=Date.now();
+  return now>m ? now : m+1;
+}
 function flatten(){
   var out=[];
   Object.keys(years).forEach(function(y){
     (years[y]||[]).forEach(function(r){ if(!r.deleted) out.push(r); });
   });
-  out.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:((a.seq||0)-(b.seq||0)); });
+  out.sort(cmpDateSeq);
   out.forEach(function(r,i){ r.no=i+1; });
   records=out;
 }
@@ -484,7 +494,7 @@ async function putRec(rec){
   if(!years[ny]) years[ny]=[];
   var i=years[ny].findIndex(function(r){return r.id===rec.id;});
   if(i>=0) years[ny][i]=rec; else years[ny].push(rec);
-  years[ny].sort(function(a,b){return a.date<b.date?-1:1;});
+  years[ny].sort(cmpDateSeq);
   return writeYear(ny);
 }
 function dropRec(id){
@@ -526,10 +536,13 @@ function loadForm(r){
 $("#save").onclick=async function(){
   var d=$("#i-date").value; if(!d){ toast("请选日期"); return; }
   var old=records.filter(function(r){return r.id===editing;})[0];
+  /* 同一天内不改日期就保留原 seq（包括手动调过的顺序）；新登记、或改到另一天，
+     按登记时间排到那天的最后。旧版 Date.now()%1e7 会绕回，别再用。 */
+  var keepSeq=old&&old.seq&&old.date===d;
   var rec={id:editing||uid(),date:d,week:$("#i-week").value.trim()||weekOf(d),
     studio:pick.studio,style:pick.style,
     teacher:pick.teacher,bill:pick.bill,qty:parseInt($("#i-qty").value,10)||1,unit:$("#i-unit").value,level:lvl,note:$("#i-note").value.trim(),
-    seq:(old&&old.seq)||Date.now()%1e7};
+    seq:keepSeq?old.seq:nextSeq(d)};
   rec.updated_at=Date.now();
   if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
 };
@@ -551,7 +564,13 @@ function renderDayOrd(){
     var j=i+dir; if(j<0||j>=day.length) return;
     var a=day[i], b=day[j];
     var t=a.seq||0; a.seq=b.seq||0; b.seq=t;
-    if(a.seq===b.seq){ a.seq=i; b.seq=j; }
+    if(a.seq===b.seq){
+      /* seq 撞号（旧版导入/同步会产生）：按调换后的顺序把当天全部重排成连续 seq，
+         不能只写 i/j，那会和当天的第三条撞号。 */
+      var ordered=day.slice(); ordered[i]=b; ordered[j]=a;
+      var base=Date.now();
+      ordered.forEach(function(x,k){ x.seq=base+k; });
+    }
     a.updated_at=Date.now(); b.updated_at=Date.now();
     writeYear(yr(cur.date)); push([a,b]); renderDayOrd(); toast("顺序已调整");
   }
@@ -1416,11 +1435,11 @@ $("#file").onchange=function(e){
       var rec={id:uid(),date:d,week:(ci.wk>=0?(r[ci.wk]||"").trim():"")||weekOf(d),
         studio:ci.st>=0?(r[ci.st]||"").trim():"",style:ci.sy>=0?(r[ci.sy]||"").trim():"",
         teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",bill:ci.bl>=0?(r[ci.bl]||"").trim():"",level:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
-        note:ci.nt>=0?(r[ci.nt]||"").trim():"",seq:i};
+        note:ci.nt>=0?(r[ci.nt]||"").trim():"",seq:nextSeq(d)};
       var y=yr(d); if(!years[y]) years[y]=[];
       years[y].push(rec); touched[y]=1; n++;
     }
-    for(var y in touched){ years[y].sort(function(a,b){return a.date<b.date?-1:1;}); await writeYear(y); }
+    for(var y in touched){ years[y].sort(cmpDateSeq); await writeYear(y); }
     flatten(); renderAll(); toast("已导入 "+n+" 条"); e.target.value="";
   };
   fr.readAsText(f,"utf-8");
@@ -1503,7 +1522,7 @@ function syncNow(){
         teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",seq:r.seq||0,
         deleted:!!r.deleted,updated_at:r.updated_at||0});
     });
-    Object.keys(y).forEach(function(k){ y[k].sort(function(a,b){return a.date<b.date?-1:1;}); });
+    Object.keys(y).forEach(function(k){ y[k].sort(cmpDateSeq); });
     years=y; flatten(); cache(); renderAll();
     if(toPush.length) return push(toPush).then(function(){ setSync("已同步 · 上传 "+toPush.length+" 条 · "+new Date().toLocaleTimeString()); });
     setSync("已同步 · "+new Date().toLocaleTimeString());
