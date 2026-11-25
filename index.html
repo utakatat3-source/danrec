@@ -131,6 +131,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .drag{cursor:grab;touch-action:none;color:var(--muted);font-size:16px}
 .orow.dragging{opacity:.65;background:var(--accent-soft);border-radius:8px}
 .pill.warnpill{background:transparent;border:1px dashed var(--accent);color:var(--accent)}
+.pill.misspill{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.rec.missed{opacity:.65}
 .badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:99px;
   font-size:11px;font-weight:650;vertical-align:middle;line-height:1.6}
 .s-live{background:var(--accent);color:#fff}
@@ -197,6 +199,13 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <div class="field"><label>上课时间</label><input type="date" id="i-date"></div>
       <div class="field"><label>周数</label><input id="i-week" placeholder="第N周"></div>
     </div>
+    <div class="field"><label>这节课</label>
+      <div class="seg" id="i-kind">
+        <button type="button" data-k="class" class="on">正常上课</button>
+        <button type="button" data-k="missed">爽约</button>
+      </div>
+      <div class="note" style="margin-top:6px">爽约会按“本节扣减”扣卡里的次数，但不计入课数、趋势和老师 / 舞种统计。</div>
+    </div>
     <div class="field"><label>舞房</label><div class="chips" id="c-studio"></div></div>
     <div class="field"><label>舞种</label><div class="chips" id="c-style"></div></div>
     <div class="field"><label>老师</label><div class="chips" id="c-teacher"></div></div>
@@ -214,7 +223,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
         <option value="次">次</option><option value="天">天</option>
       </select></div></div>
     </div>
-    <div class="field"><label>难度</label><div class="stars" id="i-stars"></div></div>
+    <div class="field" id="lvl-wrap"><label>难度</label><div class="stars" id="i-stars"></div></div>
     <div class="field"><label>备注</label><textarea id="i-note" placeholder="小班 / 曲目 / 感受…"></textarea></div>
     <button class="btn" id="save">保存记录</button>
     <button class="btn ghost" id="cancel" style="margin-top:8px" hidden>取消编辑</button>
@@ -290,7 +299,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div style="height:8px"></div>
     <button class="btn ghost" id="imp">导入 CSV</button>
     <input type="file" id="file" accept=".csv,text/csv" class="hidden">
-    <div class="note" style="margin-top:10px">CSV 表头含：日期、舞房、舞种、老师、难度、备注（顺序不限）。导入为追加，不会覆盖现有记录。</div>
+    <div class="note" style="margin-top:10px">CSV 表头含：日期、舞房、舞种、老师、难度、备注、状态（爽约，顺序不限）。导入为追加，不会覆盖现有记录。</div>
   </div>
   <div class="card">
     <div class="hd"><h2>云端同步</h2></div>
@@ -427,6 +436,8 @@ function nextSeq(d){
   var now=Date.now();
   return now>m ? now : m+1;
 }
+/* 爽约：扣卡里的次数，但不算上过的课。r.missed 为 1 时是爽约记录。 */
+function isAttended(r){ return !r.missed; }
 function flatten(){
   var out=[];
   Object.keys(years).forEach(function(y){
@@ -506,7 +517,16 @@ function dropRec(id){
 }
 
 /* ---- 表单 ---- */
-var editing=null, lvl=0;
+var editing=null, lvl=0, isMissed=false;
+function setMissed(v){
+  isMissed=!!v;
+  Array.prototype.forEach.call(document.querySelectorAll("#i-kind button"),function(b){
+    b.className=(b.dataset.k===(isMissed?"missed":"class"))?"on":"";
+  });
+  var lw=$("#lvl-wrap"); if(lw) lw.classList.toggle("hidden",isMissed);
+  if(editing) $("#save").textContent=isMissed?"保存爽约记录":"保存修改";
+  else $("#save").textContent=isMissed?"保存爽约记录":"保存记录";
+}
 function buildStars(){
   var b=$("#i-stars"); b.innerHTML="";
   for(var i=1;i<=MAXSTAR;i++){(function(n){
@@ -518,21 +538,24 @@ function buildStars(){
 }
 function paint(){ var c=$("#i-stars").children; for(var i=0;i<c.length;i++) c[i].className=(i<lvl?"on":""); }
 function resetForm(){
-  editing=null; lvl=0; $("#i-date").value=today(); $("#i-week").value=weekOf(today());
+  editing=null; lvl=0; setMissed(false); $("#i-date").value=today(); $("#i-week").value=weekOf(today());
   pick.studio=lastVal("studio"); pick.style=""; pick.teacher=""; pick.bill="";
   billTouched=false; billExpand=false; $("#dayord-wrap").classList.add("hidden"); renderFilters(); $("#i-note").value=""; $("#i-qty").value=1; $("#i-unit").value="次"; suggestBill();
   $("#cancel").hidden=true; $("#save").textContent="保存记录"; paint();
 }
 function lastVal(f){ return records.length? (records[records.length-1][f]||"") : ""; }
 function loadForm(r){
-  editing=r.id; lvl=r.level||0;
+  editing=r.id; lvl=r.level||0; setMissed(!!r.missed);
   $("#i-date").value=r.date; $("#i-week").value=r.week||weekOf(r.date);
   pick.studio=r.studio||""; pick.style=r.style||""; pick.teacher=r.teacher||""; pick.bill=r.bill||"";
   billTouched=!!r.bill; billExpand=false; renderFilters(); $("#i-note").value=r.note||""; $("#i-qty").value=r.qty||1; $("#i-unit").value=r.unit||"次"; if(!r.bill) suggestBill(); else billChips();
   renderDayOrd();
-  $("#cancel").hidden=false; $("#save").textContent="保存修改";
+  $("#cancel").hidden=false; $("#save").textContent=r.missed?"保存爽约记录":"保存修改";
   paint(); show("add");
 }
+Array.prototype.forEach.call(document.querySelectorAll("#i-kind button"),function(b){
+  b.onclick=function(){ setMissed(b.dataset.k==="missed"); };
+});
 $("#save").onclick=async function(){
   var d=$("#i-date").value; if(!d){ toast("请选日期"); return; }
   var old=records.filter(function(r){return r.id===editing;})[0];
@@ -541,10 +564,11 @@ $("#save").onclick=async function(){
   var keepSeq=old&&old.seq&&old.date===d;
   var rec={id:editing||uid(),date:d,week:$("#i-week").value.trim()||weekOf(d),
     studio:pick.studio,style:pick.style,
-    teacher:pick.teacher,bill:pick.bill,qty:parseInt($("#i-qty").value,10)||1,unit:$("#i-unit").value,level:lvl,note:$("#i-note").value.trim(),
+    teacher:pick.teacher,bill:pick.bill,qty:parseInt($("#i-qty").value,10)||1,unit:$("#i-unit").value,level:isMissed?0:lvl,note:$("#i-note").value.trim(),
+    missed:isMissed?1:0,
     seq:keepSeq?old.seq:nextSeq(d)};
   rec.updated_at=Date.now();
-  if(await putRec(rec)){ push([rec]); toast(editing?"已更新":"已记录 ✓"); resetForm(); show("list"); }
+  if(await putRec(rec)){ push([rec]); toast(editing?(isMissed?"已更新爽约":"已更新"):(isMissed?"已记录爽约 ✓":"已记录 ✓")); resetForm(); show("list"); }
 };
 $("#cancel").onclick=function(){ resetForm(); show("list"); };
 function renderDayOrd(){
@@ -598,7 +622,7 @@ function filtered(){
     if(fs&&r.studio!==fs) return false;
     if(fy&&r.style!==fy) return false;
     if(ft&&r.teacher!==ft) return false;
-    if(kw){ var s=((r.teacher||"")+" "+(r.note||"")+" "+(r.style||"")+" "+(r.week||"")).toLowerCase(); if(s.indexOf(kw)<0) return false; }
+    if(kw){ var s=((r.missed?"爽约 ":"")+(r.teacher||"")+" "+(r.note||"")+" "+(r.style||"")+" "+(r.week||"")).toLowerCase(); if(s.indexOf(kw)<0) return false; }
     return true;
   });
   return desc? rs.slice().reverse() : rs.slice();
@@ -611,19 +635,20 @@ function renderList(){
   shown.forEach(function(r){
     var m=r.date.slice(0,7);
     if(m!==lastM){ lastM=m; box.appendChild(el("div","mon",m.replace("-"," 年 ")+" 月")); }
-    var row=el("div","rec");
+    var row=el("div","rec"+(r.missed?" missed":""));
     var dd=el("div","d");
     dd.appendChild(el("b",null,String(parseInt(r.date.slice(8,10),10))));
     dd.appendChild(el("span",null,"周"+"日一二三四五六"[new Date(r.date+"T00:00:00").getDay()]));
     var mm=el("div","m");
     var t=el("div","t");
     t.appendChild(el("span","pill no","#"+r.no));
+    if(r.missed) t.appendChild(el("span","pill misspill","爽约"));
     if(r.style) t.appendChild(el("span","pill",r.style));
     var bc=billMap[r.id];
     if(bc&&bc!=="self"){ var bcd=cardById(bc); if(bcd&&bcd.studio!==r.studio) t.appendChild(el("span","pill",bcd.name)); }
     if(bc==="self") t.appendChild(el("span","pill","单独付费"));
     if(!bc) t.appendChild(el("span","pill warnpill","未登记"));
-    if(qtyOf(r)>1) t.appendChild(el("span","pill",("扣"+qtyOf(r)+(r.unit||"次"))));
+    if(qtyOf(r)>1||r.missed) t.appendChild(el("span","pill",("扣"+qtyOf(r)+(r.unit||"次"))));
     t.appendChild(document.createTextNode(r.teacher||"—"));
     mm.appendChild(t);
     var meta=[]; if(r.week) meta.push(r.week); if(r.studio) meta.push(r.studio);
@@ -1039,7 +1064,7 @@ function statLabel(){
 }
 function renderWeekSel(){
   var s=$("#s-week"), keep=s.value;
-  var ws={}; records.forEach(function(r){ var w=r.week||weekOf(r.date); if(w) ws[w]=1; });
+  var ws={}; records.forEach(function(r){ if(!isAttended(r)) return; var w=r.week||weekOf(r.date); if(w) ws[w]=1; });
   var list=Object.keys(ws).sort(function(a,b){
     return (parseInt(b.replace(/\D/g,""),10)||0)-(parseInt(a.replace(/\D/g,""),10)||0);
   });
@@ -1098,8 +1123,9 @@ function dimKey(r){
 }
 function renderStats(){
   renderPass(); renderWeekSel();
-  $("#s-label").textContent=statLabel();
-  var rs=records.filter(inR);
+  var rs=records.filter(function(r){ return inR(r)&&isAttended(r); });
+  var missedN=records.filter(function(r){ return inR(r)&&r.missed; }).length;
+  $("#s-label").textContent=statLabel()+(missedN? " · 爽约 "+missedN+" 次（已扣次，不计课数）":"");
   var lv=rs.filter(function(r){return r.level>0;});
   var avg=lv.length? lv.reduce(function(a,r){return a+r.level;},0)/lv.length:0;
   var weeks=1;
@@ -1216,7 +1242,7 @@ function buildInsights(rs){
 
   /* 与上一个等长周期对比 */
   if(p){
-    var prev=records.filter(function(r){ return r.date>=p.plo&&r.date<=p.phi; });
+    var prev=records.filter(function(r){ return isAttended(r)&&r.date>=p.plo&&r.date<=p.phi; });
     if(prev.length>=3&&rs.length>=3){
       var diff=rs.length-prev.length;
       var pct=Math.round(Math.abs(diff)/prev.length*100);
@@ -1279,7 +1305,7 @@ function buildInsights(rs){
   /* 新老师 / 新舞种 */
   if(p){
     var before={}, beforeS={};
-    records.forEach(function(r){ if(r.date<p.lo){ if(r.teacher)before[r.teacher]=1; if(r.style)beforeS[r.style]=1; } });
+    records.forEach(function(r){ if(r.missed||r.date>=p.lo) return; if(r.teacher)before[r.teacher]=1; if(r.style)beforeS[r.style]=1; });
     var newT=[], newS=[];
     rs.forEach(function(r){
       if(r.teacher&&!before[r.teacher]&&newT.indexOf(r.teacher)<0) newT.push(r.teacher);
@@ -1331,7 +1357,7 @@ function buildInsights(rs){
   if(unrated>=Math.max(5,rs.length*0.3)) out.push("有 "+unrated+" 节没打难度，补一下统计会更准。");
 
   /* 里程碑 */
-  var total=records.length;
+  var total=records.filter(isAttended).length;
   var mile=[100,200,300,400,500,600,700,800,900,1000];
   for(var j=0;j<mile.length;j++){
     if(total>=mile[j]&&total<mile[j]+8){
@@ -1389,8 +1415,8 @@ Array.prototype.forEach.call($("#gran").children,function(b){
 /* ---- CSV ---- */
 function esc(v){ v=(v==null?"":""+v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 $("#exp").onclick=function(){
-  var L=["节数,日期,周数,舞房,舞种,老师,用卡,扣减,单位,难度,备注"];
-  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,(function(){var b=billMap[r.id];if(b==="self")return "单独付费";var c=cardById(b);return c?c.name:"";})(),qtyOf(r),r.unit||"次",r.level,r.note].map(esc).join(",")); });
+  var L=["节数,日期,周数,舞房,舞种,老师,用卡,扣减,单位,难度,备注,状态"];
+  records.forEach(function(r){ L.push([r.no,r.date,r.week||weekOf(r.date),r.studio,r.style,r.teacher,(function(){var b=billMap[r.id];if(b==="self")return "单独付费";var c=cardById(b);return c?c.name:"";})(),qtyOf(r),r.unit||"次",r.level,r.note,r.missed?"爽约":""].map(esc).join(",")); });
   var b=new Blob(["\ufeff"+L.join("\n")],{type:"text/csv;charset=utf-8"});
   var u=URL.createObjectURL(b), a=document.createElement("a");
   a.href=u; a.download="舞蹈记录.csv"; a.click();
@@ -1426,16 +1452,18 @@ $("#file").onchange=function(e){
       return -1; }
     var ci={d:col("日期","上课时间","时间","date"),st:col("舞房","舞蹈室","场馆","studio"),
       sy:col("舞种","风格","style"),tc:col("老师","教师","teacher"),
-      lv:col("难度","星级","评分","level"),nt:col("备注","note"),wk:col("周数","周次","week"),bl:col("计费","卡种","bill")};
+      lv:col("难度","星级","评分","level"),nt:col("备注","note"),wk:col("周数","周次","week"),bl:col("计费","卡种","bill"),
+      ms:col("状态","爽约")};
     if(ci.d<0){ toast("没找到日期列"); return; }
     var n=0, touched={};
     for(var i=1;i<rows.length;i++){
       var r=rows[i], d=normDate(r[ci.d]); if(!d) continue;
       var v=ci.lv>=0? parseFloat(r[ci.lv]):0; if(isNaN(v)) v=0;
+      var missed=ci.ms>=0&&/爽约/.test(r[ci.ms]||"");
       var rec={id:uid(),date:d,week:(ci.wk>=0?(r[ci.wk]||"").trim():"")||weekOf(d),
         studio:ci.st>=0?(r[ci.st]||"").trim():"",style:ci.sy>=0?(r[ci.sy]||"").trim():"",
-        teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",bill:ci.bl>=0?(r[ci.bl]||"").trim():"",level:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
-        note:ci.nt>=0?(r[ci.nt]||"").trim():"",seq:nextSeq(d)};
+        teacher:ci.tc>=0?(r[ci.tc]||"").trim():"",bill:ci.bl>=0?(r[ci.bl]||"").trim():"",level:missed?0:Math.max(0,Math.min(MAXSTAR,Math.round(v))),
+        note:ci.nt>=0?(r[ci.nt]||"").trim():"",missed:missed?1:0,seq:nextSeq(d)};
       var y=yr(d); if(!years[y]) years[y]=[];
       years[y].push(rec); touched[y]=1; n++;
     }
@@ -1463,7 +1491,7 @@ function push(list){
   if(!sbOn()||!list||!list.length) return Promise.resolve();
   var body=list.map(function(r){
     return {id:r.id,date:r.date||null,week:r.week||"",studio:r.studio||"",style:r.style||"",
-      teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",seq:r.seq||0,
+      teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",missed:r.missed||0,seq:r.seq||0,
       deleted:!!r.deleted,updated_at:r.updated_at||Date.now()};
   });
   return fetch(sbUrl("classes"),{method:"POST",
@@ -1519,7 +1547,7 @@ function syncNow(){
       var r=merged[id]; if(!r.date) return;
       var k=yr(r.date); if(!y[k]) y[k]=[];
       y[k].push({id:r.id,date:r.date,week:r.week||"",studio:r.studio||"",style:r.style||"",
-        teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",seq:r.seq||0,
+        teacher:r.teacher||"",bill:r.bill||"",qty:r.qty||1,unit:r.unit||"次",level:r.level||0,note:r.note||"",missed:r.missed||0,seq:r.seq||0,
         deleted:!!r.deleted,updated_at:r.updated_at||0});
     });
     Object.keys(y).forEach(function(k){ y[k].sort(cmpDateSeq); });
@@ -1613,6 +1641,7 @@ function computeBills(){
     return true;
   }
   records.forEach(function(r){
+    /* 爽约也扣次：和正常课一样参与匹配与扣减，只是不计入课数统计 */
     if(r.bill==="self"){ billMap[r.id]="self"; return; }
     if(r.bill && String(r.bill).indexOf("_card_")===0){
       var mc=cardById(r.bill);
@@ -1633,17 +1662,18 @@ function computeBills(){
 function monthOf(d){ return (d||"").slice(0,7); }
 function cardUsage(c){
   var used=records.filter(function(r){ return billMap[r.id]===c.id; });
+  var att=used.filter(isAttended);
   var wk=weekOf(today()), mo=monthOf(today());
   function sum(a){ return a.reduce(function(s,r){ return s+qtyOf(r); },0); }
   var byCnt=used.filter(function(r){ return (r.unit||"次")!=="天"; });
   var byDay=used.filter(function(r){ return (r.unit||"次")==="天"; });
   return {
-    n:used.length, q:sum(used),
+    n:att.length, q:sum(used),
     week:sum(byCnt.filter(function(r){ return (r.week||weekOf(r.date))===wk; })),
     month:sum(byCnt.filter(function(r){ return monthOf(r.date)===mo; })),
     monthDay:sum(byDay.filter(function(r){ return monthOf(r.date)===mo; })),
     days:sum(byDay),
-    per:used.length? c.price/used.length:0
+    per:att.length? c.price/att.length:0
   };
 }
 function cardStatus(c){
@@ -1667,7 +1697,7 @@ function renderPass(){
   var kb=$("#cost-kpis");
   var all=liveCards();
   var spent=all.reduce(function(a,c){ return a+(c.price||0); },0);
-  var n=records.length;
+  var n=records.filter(isAttended).length;
   if(kb){
     kb.innerHTML="";
     [["¥"+spent.toLocaleString(),"总投入"],[n,"总课数"],[n?("¥"+(spent/n).toFixed(0)):"—","每节均价"]]
@@ -1864,14 +1894,15 @@ Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(
 function renderAll(){
   computeBills(); renderFilters(); renderList();
   if(!$("#v-stats").classList.contains("hidden")) renderStats();
-  var n=records.length;
-  if(!n){ $("#sub").textContent="还没有记录"+""; return; }
-  $("#sub").textContent="共 "+n+" 节课 · "+records[0].date+" 至 "+records[n-1].date+"";
+  var n=records.filter(isAttended).length;
+  var missedN=records.length-n;
+  if(!records.length){ $("#sub").textContent="还没有记录"+""; return; }
+  $("#sub").textContent="共 "+n+" 节课"+(missedN?" · 爽约 "+missedN+" 次":"")+" · "+records[0].date+" 至 "+records[records.length-1].date+"";
 }
 $("#sb-save").onclick=saveCfg;
 $("#sb-sync").onclick=syncNow;
 $("#sb-clear").onclick=clearCfg;
-$("#ins-more").onclick=function(){ renderInsights(records.filter(inR)); };
+$("#ins-more").onclick=function(){ renderInsights(records.filter(function(r){ return inR(r)&&isAttended(r); })); };
 $("#card-add").onclick=function(){ openCardDlg(null); };
 $("#cd-save").onclick=saveCardDlg;
 $("#cd-cancel").onclick=function(){ $("#cdlg").close(); };
